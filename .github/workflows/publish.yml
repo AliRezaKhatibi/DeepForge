@@ -1,0 +1,65 @@
+name: Package and publish
+on:
+  pull_request:
+  push:
+    branches: [main, 'release/pypi-*']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Publishing destination
+        type: choice
+        options: [testpypi, pypi]
+        required: true
+        default: testpypi
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*
+      - run: |
+          python -m venv /tmp/deepforge-wheel
+          /tmp/deepforge-wheel/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/deepforge-wheel/bin/python -c "import deepforge; from deepforge.checkpoint import CheckpointStore; from deepforge.notebook import NotebookMonitor"
+          /tmp/deepforge-wheel/bin/deepforge --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+  testpypi:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.target == 'testpypi'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+  pypi:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.target == 'pypi'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
