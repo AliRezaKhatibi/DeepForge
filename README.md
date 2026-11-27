@@ -416,3 +416,22 @@ Future work: scalable similarity indexing, per-image annotation preview, group-a
 ## License
 
 DeepForge is distributed under the MIT license. See [LICENSE](LICENSE). Third-party dependencies retain their own licenses. The project is not affiliated with PyTorch or Ultralytics.
+
+## Smart checkpoint recovery
+
+Create a JSON configuration in Studio using the Checkpoint button, or write one manually with root, run_id and policy (enabled, keep_last, save_every_epochs, max_bytes). YAML requires PyYAML. A mounted Drive directory can be used as root, but remote filesystem durability and locking are not guaranteed.
+
+```python
+from deepforge.checkpoint_config import load_checkpoint_config
+from deepforge.checkpoint_torch import TorchCheckpoint
+
+store = load_checkpoint_config("checkpoint.json")
+# Construct model and optimizer before restoring.
+# adapter = TorchCheckpoint(store, model, optimizer, scheduler=scheduler)
+# metadata = {"dataset_fingerprint": "...", "seed": 42, "settings": {}}
+# adapter.save_epoch(epoch, global_step=step, metadata=metadata)
+# state = adapter.restore_latest(expected_metadata=metadata)
+# Continue at state["epoch"] + 1.
+```
+
+Call save_epoch after each completed epoch. Supply dataset fingerprints, splits, augmentation settings and other provenance in metadata. Inspect verified records with `deepforge checkpoint ROOT RUN_ID`. After a crash, only after confirming all writers have stopped, call `store.recover_abandoned_lock(confirmed_no_writer=True)`. Checksums detect corruption, not malicious modification. Use trusted storage. Exact resume depends on framework, sampler, hardware and deterministic operations; mid-epoch progress is not guaranteed. Studio exports configuration rather than modifying running training scripts.
