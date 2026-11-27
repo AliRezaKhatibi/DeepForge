@@ -31,7 +31,7 @@ def finding_rows(report, limit=200):
     """Show concrete audit findings before summary fields, with a documented cap."""
     rows = []
     fields = ('duplicates', 'candidate_pairs', 'errors', 'overlaps', 'missing_labels',
-              'orphan_labels', 'ambiguous_image_stems', 'issues', 'ranking', 'rejected', 'calls')
+              'orphan_labels', 'ambiguous_image_stems', 'issues', 'ranking', 'rejected', 'calls', 'operators')
     for key in fields:
         value = report.get(key)
         if not isinstance(value, list):
@@ -42,6 +42,10 @@ def finding_rows(report, limit=200):
                 return rows
             if key == 'ranking':
                 display = f"{item['run']} | best {item['best_value']:.6g} at epoch {item['best_epoch']:g}"
+            elif key == 'calls':
+                ins = ", ".join(str(t["shape"]) for t in item["inputs"])
+                outs = ", ".join(str(t["shape"]) for t in item["outputs"])
+                display = f"{item['name']} | {item['type']} | {ins} -> {outs} | MACs: {item['estimated_macs']}"
             elif isinstance(item, dict):
                 display = json.dumps(item, ensure_ascii=False, allow_nan=False)
             else:

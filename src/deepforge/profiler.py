@@ -193,3 +193,91 @@ def profile_mlp(inputs, hidden, outputs, *, batch=1, warmup=2, repeats=5):
     report = profile_model(model, torch.zeros(batch, inputs), warmup=warmup, repeats=repeats)
     report["architecture"] = list(sizes)
     return report
+
+
+def profile_operators(model, *args, kwargs=None, max_rows=200):
+    """Profile a single trusted forward with PyTorch's operator FLOP estimates.
+
+    CPU activity records dispatch events even for CUDA tensors. The native
+    estimator only supports selected operators (e.g. matrix multiplication
+    and 2-D convolutions); zero or missing estimates do not imply zero cost.
+    Never add these estimates to the separate module-hook MAC/FLOP totals.
+    """
+    torch = _torch()
+    if not isinstance(model, torch.nn.Module):
+        raise TypeError("model must be a torch.nn.Module")
+    if type(max_rows) is not int or not 1 <= max_rows <= 10000:
+        raise ValueError("max_rows must be between 1 and 10000")
+    kwargs = dict(kwargs or {})
+    flags = [(module, module.training) for module in model.modules()]
+    devices = {t.device for t in list(model.parameters()) + list(model.buffers()) +
+               list(_tensors((args, kwargs), torch))}
+    try:
+        model.eval()
+        with torch.inference_mode():
+            with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU],
+                                        record_shapes=True, with_flops=True) as trace:
+                model(*args, **kwargs)
+                for device in devices:
+                    if device.type == "cuda":
+                        torch.cuda.synchronize(device)
+        rows = [{"operator": event.key, "calls": int(event.count),
+                 "estimated_flops": int(event.flops or 0),
+                 "self_cpu_us": float(event.self_cpu_time_total)}
+                for event in trace.key_averages()]
+        rows.sort(key=lambda row: (-row["estimated_flops"], -row["calls"], row["operator"]))
+        return {"method": "torch.profiler.with_flops", "estimated_flops": sum(r["estimated_flops"] for r in rows),
+                "operators_with_positive_estimate": sum(r["estimated_flops"] > 0 for r in rows),
+                "operators_without_positive_estimate": sum(r["estimated_flops"] == 0 for r in rows),
+                "operator_types": len(rows), "operators": rows[:max_rows],
+                "rows_truncated": len(rows) > max_rows,
+                "limitations": ["Partial native operator estimates; zero may mean unestimated.",
+                                "Do not add to module-hook FLOPs; overlap is possible.",
+                                "CPU dispatch time includes instrumentation effects; not GPU latency.",
+                                "Trusted custom forwards can mutate state."]}
+    finally:
+        for module, flag in flags:
+            module.training = flag
+
+
+def profile_cuda_peak(model, *args, kwargs=None):
+    """Measure process-wide CUDA allocator peaks over one explicit forward.
+
+    This opt-in function resets per-device allocator peak counters and cannot
+    restore previous peaks. Do not run during training or concurrent CUDA work.
+    """
+    torch = _torch()
+    if not isinstance(model, torch.nn.Module):
+        raise TypeError("model must be a torch.nn.Module")
+    kwargs = dict(kwargs or {})
+    devices = sorted({t.device for t in list(model.parameters()) + list(model.buffers()) +
+                      list(_tensors((args, kwargs), torch)) if t.device.type == "cuda"}, key=str)
+    if not devices:
+        raise ValueError("A CUDA model or CUDA input is required")
+    flags = [(module, module.training) for module in model.modules()]
+    try:
+        model.eval()
+        with torch.inference_mode():
+            for device in devices:
+                torch.cuda.synchronize(device)
+            before = {d: (torch.cuda.memory_allocated(d), torch.cuda.memory_reserved(d)) for d in devices}
+            for device in devices:
+                torch.cuda.reset_peak_memory_stats(device)
+            output = model(*args, **kwargs)
+            for device in devices:
+                torch.cuda.synchronize(device)
+            rows = []
+            for device in devices:
+                allocated, reserved = before[device]
+                peak = torch.cuda.max_memory_allocated(device)
+                peak_reserved = torch.cuda.max_memory_reserved(device)
+                rows.append({"device": str(device), "baseline_allocated_bytes": allocated,
+                             "baseline_reserved_bytes": reserved, "peak_allocated_bytes": peak,
+                             "peak_reserved_bytes": peak_reserved,
+                             "peak_above_baseline_bytes": max(0, peak-allocated)})
+            del output
+        return {"devices": rows, "scope": "process-wide CUDA allocator, single forward",
+                "peak_counters_reset": True}
+    finally:
+        for module, flag in flags:
+            module.training = flag
