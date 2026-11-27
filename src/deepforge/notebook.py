@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 
 
-def snapshot_html(path, *, max_epochs=None, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
+def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
     if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
         raise ValueError("max_epochs must be None or an integer >= 2")
     if type(dashboard_height) is not int or dashboard_height < 120:
@@ -55,7 +55,7 @@ def snapshot_html(path, *, max_epochs=None, show_stages=True, show_charts=True, 
     records = data.get("epoch_records", {})
     current = max(1, data["epoch"])
     last = min(data["epochs"], current + 1)
-    first = 1 if max_epochs is None else max(1, last - max_epochs + 1)
+    first = 1 if max_epochs is None else max(1, current - max_epochs + 1)
     cards = []
     for epoch in range(last, first - 1, -1) if show_epochs else ():
         done = max(0, min(data["batches_per_epoch"], data["completed_batches"] - (epoch - 1) * data["batches_per_epoch"]))
@@ -80,12 +80,7 @@ def snapshot_html(path, *, max_epochs=None, show_stages=True, show_charts=True, 
                      f'<details{" open" if epoch == current else ""}><summary>Details</summary><div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</details></article>')
     archive = ""
     if show_history and first > 1:
-        old = []
-        for epoch in range(1, first):
-            record = records.get(str(epoch), {})
-            summary = " · ".join(f"{esc(kind)} {esc(k)}: {fmt(v)}" for kind in ("training", "validation") for k,v in record.get(kind, {}).items())
-            old.append(f"<tr><td>{epoch}</td><td>{summary}</td></tr>")
-        archive = f'<details><summary>Earlier epochs ({first-1})</summary><div style="max-height:300px;overflow:auto"><table>{"".join(old)}</table></div></details>'
+        archive = f'<p>{first-1} earlier epochs retained in the training log and snapshot.</p>'
     hardware = ""
     if show_resources:
         meters = []
@@ -145,7 +140,7 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=None, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
