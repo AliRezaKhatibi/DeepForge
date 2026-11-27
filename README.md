@@ -41,6 +41,20 @@ A standard Tk installation is needed. On Debian/Ubuntu, install `python3-tk` if 
 
 The Windows launch scripts have been inspected but not run on Windows in the release preparation environment. The actual desktop UI was exercised on Linux with a virtual display. GPU execution has not been validated.
 
+### Google Colab and VS Code notebooks
+
+In Colab, install into the active kernel:
+
+```python
+%pip install "deepforge-research-toolkit[notebook] @ git+https://github.com/AliRezaKhatibi/DeepForge.git"
+```
+
+In VS Code, install the Python and Jupyter extensions, select your Python environment as the notebook kernel, and run `%pip install -e ".[notebook]"` from the repository root in that kernel. Restart the kernel if upgrading an already imported package.
+
+Open [the synthetic notebook example](examples/notebook_compatibility.ipynb) ([Colab](https://colab.research.google.com/github/AliRezaKhatibi/DeepForge/blob/main/examples/notebook_compatibility.ipynb)). Install the package before running its cells. The new `NotebookMonitor(path, interval=1.0)` uses an IPython display handle; call `refresh()` after recording batches and `refresh(force=True)` after finishing. Set the TrainingMonitor publish interval to suit the refresh interval. No Tk window, server or background thread is required. Colab files are ephemeral unless explicitly copied to persistent storage. VS Code scripts can continue using the CLI and desktop viewer.
+
+CI executes the notebook in standard headless Jupyter kernels on Windows and Linux. This does not establish actual hosted Colab or VS Code frontend rendering compatibility. GPU hardware validation is deferred.
+
 ## Research workspaces
 
 | Workspace | Purpose | CLI command |
