@@ -93,8 +93,10 @@ class TrainingSession:
         from IPython.display import display
         saved = json.loads(self.state_path.read_text(encoding="utf-8"))
         epoch = saved.get("epoch", 0)
-        label = w.Label(value=f"Saved epoch {epoch} / {self.monitor.epochs}")
-        resume = w.Button(description="Restore training state", button_style="success", disabled=saved["status"] != "paused")
+        path = self.recovery.store.latest()
+        verified = path is not None and path.name == f"epoch-{epoch}.bin"
+        label = w.Label(value=f"Saved epoch {epoch} / {self.monitor.epochs}; next {epoch+1}; verified: {verified}")
+        resume = w.Button(description="Restore training state", button_style="success", disabled=saved["status"] != "paused" or not verified)
         def recover(_):
             try:
                 result = self.restore()
@@ -115,10 +117,11 @@ class TrainingSession:
         cancel = w.Button(description="Cancel stop")
         label = w.Label(value="Running")
         def request(_):
-            label.value = f"Stop requested after epoch {self.request_stop(after_next=mode.value)}"
+            self.control.request(after_next=mode.value)
+            label.value = "Stop request queued; awaiting training acknowledgement"
         def reset(_):
-            self.cancel_stop()
-            label.value = "Running"
+            self.control.cancel()
+            label.value = "Cancellation queued"
         stop.on_click(request)
         cancel.on_click(reset)
         display(w.VBox([mode, w.HBox([stop, cancel]), label]))
