@@ -1,8 +1,9 @@
 """Opt-in callback adapter for the Ultralytics trainer callback protocol."""
 from .monitor import TrainingMonitor
+from .resources import sample_resources
 
 
-def attach_monitor(model, path, *, publish_interval=1.0):
+def attach_monitor(model, path, *, publish_interval=1.0, resources=False):
     """Attach before model.train(). Fixed-length, fresh single-process runs only.
 
     Callback compatibility depends on Ultralytics version. This adapter observes
@@ -27,6 +28,17 @@ def attach_monitor(model, path, *, publish_interval=1.0):
             metrics = {str(name): value for name,value in zip(names, values)}
             metrics["loss"] = sum(values)
         state["monitor"].batch(epoch=state["epoch"], batch=state["batch"], metrics=metrics)
+    def epoch_end(trainer):
+        metrics = {}
+        for key, value in (getattr(trainer, "metrics", None) or {}).items():
+            try:
+                metrics[str(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        state["monitor"].epoch_end(state["epoch"], metrics)
+        if resources:
+            state["monitor"].record_resources(sample_resources())
+
     def save(trainer):
         for key in ("last", "best"):
             path = getattr(trainer, key, None)
@@ -35,7 +47,7 @@ def attach_monitor(model, path, *, publish_interval=1.0):
     def end(trainer):
         state["monitor"].finish()
     for event, callback in (("on_train_start", start), ("on_train_epoch_start", epoch_start),
-                            ("on_train_batch_end", batch_end), ("on_model_save", save),
+                            ("on_train_batch_end", batch_end), ("on_fit_epoch_end", epoch_end), ("on_model_save", save),
                             ("on_train_end", end)):
         model.add_callback(event, callback)
     return state

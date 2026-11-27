@@ -269,6 +269,12 @@ model.train(data="data.yaml", epochs=10)
 
 The adapter is tested against a synthetic callback protocol, not a real Ultralytics training run. It does not support resume, distributed training or changing epoch lengths. Sample counts are not populated by the adapter. The viewer is a separate Tk window and does not interrupt training. It plots recent loss or the first available metric; registered checkpoint names and sizes are displayed without opening the files. A killed process may leave its last snapshot marked running.
 
+### Validation metrics, resources and notebooks
+
+The live viewer provides a selector for available batch metric curves. Call `monitor.epoch_end(epoch, metrics)` after validation to retain epoch-level metrics separately. The Ultralytics adapter records the trainer's reported metrics through the fit-epoch callback. Opt in with `attach_monitor(model, "live.json", resources=True)`; install the resources extra for CPU/RAM measurements. CUDA allocated/reserved bytes describe the current PyTorch allocator, not total GPU utilization. Resource sampling occurs at epoch boundaries. 
+
+In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews, full batch history, and new desktop screenshots are not included.
+
 ## Tests and release verification
 
 ```bash

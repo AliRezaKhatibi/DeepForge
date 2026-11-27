@@ -29,6 +29,8 @@ class TrainingMonitor:
         self.completed = self.samples = 0
         self.history = []
         self.metrics = {}
+        self.epoch_history = []
+        self.resources = {}
         self.artifacts = []
         self.status = "running"
         self._publish(force=True)
@@ -54,6 +56,26 @@ class TrainingMonitor:
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
         self._publish(force=step == self.epochs * self.batches)
+
+    def epoch_end(self, epoch, metrics):
+        """Record finite scalar validation metrics after a completed epoch."""
+        _count(epoch, "epoch", 1)
+        if self.status != "running" or epoch > self.completed // self.batches:
+            raise ValueError("Epoch has not completed or monitor has stopped")
+        if self.epoch_history and epoch <= self.epoch_history[-1]["epoch"]:
+            raise ValueError("Epoch metrics must be recorded once in order")
+        values = {}
+        for key, raw in metrics.items():
+            value = float(raw.detach().item() if hasattr(raw, "detach") else raw)
+            values[str(key)] = value if math.isfinite(value) else None
+        self.epoch_history.append({"epoch": epoch, "metrics": values})
+        self._publish(force=True)
+
+    def record_resources(self, resources):
+        """Record caller-supplied, JSON-compatible resource measurements."""
+        json.dumps(resources, allow_nan=False)
+        self.resources = json.loads(json.dumps(resources))
+        self._publish(force=True)
 
     def artifact(self, path):
         """Register an explicitly selected output; never inspect file contents."""
@@ -82,7 +104,8 @@ class TrainingMonitor:
                 "samples_per_second": self.samples / elapsed if elapsed else 0.0,
                 "eta_seconds": (total - self.completed) / rate if rate and self.status == "running" else (0 if self.status == "completed" else None),
                 "metrics": dict(self.metrics), "history": list(self.history),
-                "artifacts": list(self.artifacts)}
+                "artifacts": list(self.artifacts), "epoch_history": list(self.epoch_history),
+                "resources": dict(self.resources)}
 
     def _publish(self, *, force=False):
         now = time.monotonic()

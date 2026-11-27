@@ -4,6 +4,7 @@
 
 - Added atomic local training snapshots, progress, throughput, ETA, bounded metric history and output metadata.
 - Added independent jade-themed desktop live viewer and opt-in Ultralytics callback adapter.
+- Added separate validation metric history, selectable batch metric curves, optional CPU/RAM and PyTorch CUDA allocator sampling, and notebook snapshot rendering.
 - Added synthetic demo and tests; retained existing Studio, CLI and Python APIs.
 
 ## 0.4.0 - Automation and training health release candidate

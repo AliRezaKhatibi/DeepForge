@@ -25,6 +25,9 @@ def main(argv=None):
     progress.pack(fill="x", padx=24, pady=8)
     details = tk.StringVar()
     tk.Label(root, textvariable=details, bg=cream, fg=jade, justify="left").pack(pady=8)
+    metric_choice = tk.StringVar(value="loss")
+    metric_select = ttk.Combobox(root, textvariable=metric_choice, state="readonly")
+    metric_select.pack(fill="x", padx=24)
     chart = tk.Canvas(root, bg="#FFFCF5", highlightthickness=0, height=220)
     chart.pack(fill="both", expand=True, padx=24, pady=8)
     artifacts = tk.StringVar()
@@ -45,7 +48,10 @@ def main(argv=None):
             w, h = max(chart.winfo_width(), 100), max(chart.winfo_height(), 100)
             history = data["history"]
             keys = sorted({k for row in history for k,v in row["metrics"].items() if v is not None})
-            key = "loss" if "loss" in keys else (keys[0] if keys else None)
+            metric_select["values"] = keys
+            key = metric_choice.get() if metric_choice.get() in keys else (keys[0] if keys else None)
+            if key:
+                metric_choice.set(key)
             chart.create_text(15, 15, anchor="nw", text=f"Recent {key or 'metric'} history", fill=jade, font=("Arial", 12, "bold"))
             pts = [(r["step"], r["metrics"][key]) for r in history if key and r["metrics"].get(key) is not None]
             if pts:
@@ -57,7 +63,10 @@ def main(argv=None):
                 for x,y in coords[-1:]:
                     chart.create_oval(x-4,y-4,x+4,y+4,fill=gold,outline=jade)
                 chart.create_text(w-15, 15, anchor="ne", text=f"{pts[-1][1]:.5g}", fill=jade)
-            artifacts.set("Output files: " + (" | ".join(f'{a["name"]} ({a["bytes"] if a["exists"] else "missing"} bytes)' for a in data["artifacts"][-5:]) or "None registered"))
+            validation = data.get("epoch_history", [])
+            extra = "\\nValidation: " + str(validation[-1]["metrics"]) if validation else ""
+            extra += "\\nResources: " + str(data["resources"]) if data.get("resources") else ""
+            artifacts.set("Output files: " + (" | ".join(f'{a["name"]} ({a["bytes"] if a["exists"] else "missing"} bytes)' for a in data["artifacts"][-5:]) or "None registered") + extra)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             status.set(f"Snapshot unavailable: {type(exc).__name__}")
         root.after(1000, refresh)
