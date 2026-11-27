@@ -48,3 +48,30 @@ class AudioAlerts:
         display(Audio(samples,rate=rate,autoplay=True))
         self.last=epoch
         return True
+
+
+def build_training_session(config_path, *, run_id, epochs, batches_per_epoch, model, optimizer,
+                           experiment_metadata, scheduler=None, scaler=None, sampler=None):
+    """Apply saved setup to a PyTorch session; caller owns training loop."""
+    import json
+    from pathlib import Path
+    from .monitor import TrainingMonitor
+    from .notebook import NotebookMonitor
+    from .checkpoint import CheckpointPolicy, CheckpointStore
+    from .checkpoint_torch import TorchCheckpoint
+    from .session import TrainingSession
+    config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    store = CheckpointStore(config["storage"], run_id, CheckpointPolicy(
+        keep_last=config["keep_last"], enabled=config["periodic"]))
+    monitor = TrainingMonitor(store.root/"live.json", epochs=epochs,
+        batches_per_epoch=batches_per_epoch,
+        resource_interval=2 if config["show_resources"] else None)
+    keys = ("epoch_metrics","overall_fields","theme","max_epochs","interval",
+            "audio","show_diagnostics","show_resources","alert_patience")
+    view = NotebookMonitor(monitor.path, **{k:config[k] for k in keys})
+    checkpoint = TorchCheckpoint(store, model, optimizer, scheduler=scheduler,
+        scaler=scaler, sampler=sampler, monitor=monitor,
+        refresh=lambda: view.refresh(force=True))
+    session = TrainingSession(monitor, checkpoint,
+        {"setup":config,"experiment":experiment_metadata})
+    return monitor, view, checkpoint, session
