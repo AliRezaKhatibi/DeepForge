@@ -134,3 +134,17 @@ def test_epoch_health_warning(tmp_path):
     assert epoch_health(monitor.epoch_records,4)[0] == "Severe overfitting warning"
     assert "Severe overfitting warning" in snapshot_html(path)
     assert "Severe overfitting warning" not in snapshot_html(path,show_diagnostics=False)
+
+
+def test_gradient_warning(tmp_path):
+    path = tmp_path / "gradient.json"
+    monitor = TrainingMonitor(path, epochs=2, batches_per_epoch=1)
+    monitor.batch(epoch=1,batch=1,metrics={"gradient_norm":150})
+    assert "Gradient explosion" in snapshot_html(path)
+    assert "Gradient explosion" not in snapshot_html(path,gradient_threshold=200)
+
+def test_keep_all_checkpoints(tmp_path):
+    store = CheckpointStore(tmp_path,"all",CheckpointPolicy(keep_last=None))
+    for epoch in range(1,6):
+        store.save(epoch,b"payload")
+    assert len(list(store.root.glob("epoch-*.bin"))) == 5
