@@ -45,6 +45,7 @@ class TrainingMonitor:
         self.preview = None
         self.archive = Path(archive) if archive is not None else self.path.with_name(self.path.name + ".epochs.jsonl")
         self._epoch_only_archive = archive is None
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.archive is not None:
             if self.archive.resolve() == self.path.resolve():
                 raise ValueError("Archive and snapshot must be different files")
@@ -76,7 +77,7 @@ class TrainingMonitor:
             self.epoch_records.setdefault(epoch, {})["training"] = dict(values)
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
-        if batch == self.batches:
+        if batch == self.batches and self._epoch_only_archive:
             self._append({"event": "training_epoch", "epoch": epoch, "metrics": values})
         self._append({"event": "batch", "step": step, "samples": samples, "metrics": values, "labels": distribution})
         if self.resource_interval is not None and time.monotonic() - self._last_resource >= self.resource_interval:
@@ -144,6 +145,13 @@ class TrainingMonitor:
                 "bytes": p.stat().st_size if p.is_file() else None}
         self.artifacts = [a for a in self.artifacts if a["name"] != item["name"]]
         self.artifacts = (self.artifacts + [item])[-100:]
+        self._publish(force=True)
+
+    def pause(self):
+        if self.status != "running" or not self.completed or self.completed % self.batches:
+            raise RuntimeError("Pause requires a completed epoch")
+        self.status = "paused"
+        self._append({"event": "pause", "epoch": self.completed // self.batches})
         self._publish(force=True)
 
     def finish(self, *, failed=False):
