@@ -54,10 +54,10 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
 
     records = data.get("epoch_records", {})
     current = max(1, data["epoch"])
-    last = min(data["epochs"], current + 1)
+    last = current
     first = 1 if max_epochs is None else max(1, current - max_epochs + 1)
     cards = []
-    for epoch in range(last, first - 1, -1) if show_epochs else ():
+    for epoch in range(first, last + 1) if show_epochs else ():
         done = max(0, min(data["batches_per_epoch"], data["completed_batches"] - (epoch - 1) * data["batches_per_epoch"]))
         percent = 100 * done / data["batches_per_epoch"]
         record = records.get(str(epoch), {})
