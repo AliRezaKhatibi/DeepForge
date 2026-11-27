@@ -337,7 +337,7 @@ class Studio:
             for k,cap,val in (('true_column','True label column','y_true'),('score_column','Probability column','score'),('positive_label','Positive label','1'),('threshold','Decision threshold','0.5')):
                 self.field(row,k,cap,val,width=12)
         elif tool=='Model':
-            for k,cap,val in (('inputs','Input width','16'),('hidden','Hidden width','32'),('outputs','Output width','3')): self.field(row,k,cap,val)
+            for k,cap,val in (('inputs','Input width','16'),('hidden','Hidden width','32'),('outputs','Output width','3'),('batch','Batch size','1')): self.field(row,k,cap,val)
         elif tool=='Images':
             self.field(row,'similarity','Perceptual comparison','yes',('yes','no')); self.field(row,'threshold','Max Hamming distance','4'); self.field(row,'max_images','Image scan limit','2000')
         elif tool=='Groups':
@@ -468,7 +468,7 @@ class Studio:
             return
         d=self.chart; kind=d['type']; x0,y0,x1,y1=65,32,w-45,h-45
         if kind=='bars':
-            self.chart_title.configure(text='RESULT DISTRIBUTION  /  FIRST 12 ITEMS')
+            self.chart_title.configure(text='ESTIMATED MACs BY LAYER' if self.tool=='Model' else 'RESULT DISTRIBUTION  /  FIRST 12 ITEMS')
             vals=d['values'][:12]; x0=170; x1=w-65; lo=min([0]+[v for _,v in vals]); hi=max([0]+[v for _,v in vals]); span=hi-lo or 1
             step=(y1-y0)/max(1,len(vals)); zero=x0+(0-lo)/span*(x1-x0)
             for i in range(5):

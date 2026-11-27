@@ -43,8 +43,8 @@ def analyze(tool, options):
     elif tool == "Model":
         sizes = [int(options[k]) for k in ("inputs", "hidden", "outputs")]
         from .profiler import profile_mlp
-        report = profile_mlp(*sizes, warmup=1, repeats=3)
-        chart = {"type": "bars", "values": [("Trainable", report["trainable_parameters"]), ("Frozen", report["frozen_parameters"])]}
+        report = profile_mlp(*sizes, batch=int(options.get("batch", "1")), warmup=1, repeats=3)
+        chart = {"type": "bars", "values": [(f"{r['name']} {r['type']}", r["estimated_macs"]) for r in report["calls"] if r["estimated_macs"] is not None]}
     elif tool == "Images":
         report = audit_images(options['path'], similarity=options.get('similarity', 'yes') == 'yes', threshold=int(options.get('threshold', '4')), max_images=int(options.get('max_images', '2000')))
         chart = {'type': 'bars', 'values': [('Decoded', report['decoded']), ('Invalid', report['invalid_images']), ('Unsupported', report['unsupported_images'])]}
@@ -80,7 +80,7 @@ def summary(tool, report):
     if tool == "Metrics":
         return [("Samples", str(report["samples"])), ("Accuracy", f'{report["accuracy"]:.1%}'), ("Macro F1", f'{report["macro"]["f1"]:.3f}')]
     if tool == "Model":
-        return [("Parameters", f'{report["parameters"]:,}'), ("Trainable", f'{report["trainable_parameters"]:,}'), ("Parameter MiB", f'{report["parameter_bytes"]/1048576:.3f}')]
+        return [("Parameters", f'{report["parameters"]:,}'), ("Partial MACs", f'{report["estimated_macs"]:,}'), ("Median ms", f'{report["latency"]["median_ms"]:.3f}')]
     if tool == "Images":
         return [('Decoded', str(report['decoded'])), ('Invalid', str(report['invalid_images'])), ('Similar pairs', str(report['candidate_pair_count']))]
     if tool == "Groups":

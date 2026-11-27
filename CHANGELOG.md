@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - Profiler refinement candidate
+
+- Added independent PyTorch operator FLOP estimates and an explicitly opt-in CUDA allocator peak measurement.
+- Improved Model Inspector batch input, per-layer MAC chart and readable shape findings.
+- Added regression tests and actual desktop architecture gallery capture; CUDA hardware verification remains outstanding.
+
 ## 0.7.0 - Architecture profiler candidate
 
 - Added executed leaf-module traces, tensor metadata, parameter inventories and partial Linear/Conv MAC/FLOP estimates.
