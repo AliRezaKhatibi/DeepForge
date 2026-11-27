@@ -19,6 +19,7 @@ class TrainingSession:
         self.target = None
         self.lock = Lock()
         self.state_path = self.root / "session.json"
+        self.manual_path = self.root / "manual-save.json"
         self.metadata = {"config": self.config, "epochs": monitor.epochs,
                          "batches_per_epoch": monitor.batches}
         if not self.state_path.exists():
@@ -44,11 +45,26 @@ class TrainingSession:
             else:
                 self.request_stop(after_next=command.get("after_next", True))
 
+    def request_checkpoint(self):
+        """Queue an explicit save at the next completed epoch boundary."""
+        if self.monitor.status != "running":
+            raise RuntimeError("Session is not running")
+        atomic_json(self.manual_path, {"requested": True})
+
     def epoch_boundary(self, epoch, *, global_step):
         """Call after validation and scheduler updates; break loop if True."""
         self.poll_control()
         with self.lock:
             if self.target is None or epoch < self.target:
+                if self.manual_path.exists():
+                    if (self.monitor.completed != epoch * self.monitor.batches or
+                            "validation" not in self.monitor.epoch_records.get(epoch, {})):
+                        raise RuntimeError("Manual save requires a completed epoch and validation")
+                    manual = TorchCheckpoint(CheckpointStore(self.root, "manual", CheckpointPolicy()),
+                        self.recovery.model, self.recovery.optimizer, monitor=self.monitor,
+                        refresh=self.recovery.refresh, **self.recovery.components)
+                    manual.save_epoch(epoch, global_step=global_step, metadata=self.metadata)
+                    self.manual_path.unlink(missing_ok=True)
                 return False
             if self.monitor.completed != epoch * self.monitor.batches:
                 raise RuntimeError("Not at requested epoch boundary")
@@ -62,6 +78,7 @@ class TrainingSession:
                         "epoch": epoch, "global_step": global_step,
                         "snapshot": self.monitor.snapshot()})
             self.monitor.pause()
+            self.manual_path.unlink(missing_ok=True)
             self.target = None
             return True
 
@@ -115,6 +132,7 @@ class TrainingSession:
         mode = w.Dropdown(options=[("After next epoch",True),("After current epoch",False)],value=True)
         stop = w.Button(description="Request safe stop", button_style="danger")
         cancel = w.Button(description="Cancel stop")
+        save = w.Button(description="Save checkpoint", button_style="info")
         label = w.Label(value="Running")
         def request(_):
             self.control.request(after_next=mode.value)
@@ -122,7 +140,14 @@ class TrainingSession:
         def reset(_):
             self.control.cancel()
             label.value = "Cancellation queued"
+        def request_save(_):
+            try:
+                self.request_checkpoint()
+                label.value = "Checkpoint requested; save occurs at an epoch boundary"
+            except RuntimeError as exc:
+                label.value = str(exc)
         stop.on_click(request)
         cancel.on_click(reset)
-        display(w.VBox([mode, w.HBox([stop, cancel]), label]))
+        save.on_click(request_save)
+        display(w.VBox([mode, w.HBox([stop, cancel, save], layout=w.Layout(flex_flow="row wrap")), label]))
         return stop, cancel, label

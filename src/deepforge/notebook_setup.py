@@ -71,7 +71,18 @@ def build_training_session(config_path, *, run_id, epochs, batches_per_epoch, mo
         resource_interval=2 if config["show_resources"] else None)
     keys = ("epoch_metrics","overall_fields","theme","max_epochs","interval",
             "audio","show_diagnostics","show_resources","alert_patience")
+    metadata = {"run_id": run_id, "model": type(model).__name__,
+                "dataset": experiment_metadata,
+                "readiness": {"Configuration": True, "Checkpoint settings": True}}
+    try:
+        params = list(model.parameters())
+        metadata.update(parameters=sum(p.numel() for p in params),
+                        trainable_parameters=sum(p.numel() for p in params if p.requires_grad),
+                        device=str(params[0].device) if params else None)
+    except (AttributeError, ValueError, RuntimeError):
+        pass  # Lazy or custom model: metadata is optional, never block training.
     view = NotebookMonitor(monitor.path, widget_scroll=config.get("widget_scroll",False),
+        advanced=config.get("advanced_dashboard",True), metadata=metadata,
         gradient_threshold=config.get("gradient_threshold",100.0), **{k:config[k] for k in keys})
     checkpoint = TorchCheckpoint(store, model, optimizer, scheduler=scheduler,
         scaler=scaler, sampler=sampler, monitor=monitor,

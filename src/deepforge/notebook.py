@@ -148,11 +148,13 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0, audio=False, widget_scroll=False):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0, audio=False, widget_scroll=False, advanced=False, metadata=None):
         from .notebook_setup import AudioAlerts
         self.audio = AudioAlerts(audio)
         self.widget_scroll = widget_scroll
         self._widget = None
+        self.advanced = advanced
+        self.metadata = dict(metadata or {})
         if not math.isfinite(alert_threshold) or alert_threshold <= 0 or type(alert_patience) is not int or alert_patience < 1:
             raise ValueError('Invalid alert settings')
         if not math.isfinite(interval) or interval < 0:
@@ -181,9 +183,28 @@ class NotebookMonitor:
         options = dict(self.sections)
         if self.widget_scroll:
             options['fixed_header'] = False
-        markup = snapshot_html(self.path, max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme, **options)
-        output = HTML(markup)
-        if self.widget_scroll:
+        render_options = dict(max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme, **options)
+        if self.advanced:
+            from .dashboard import dashboard_html, TABS
+            if self.widget_scroll:
+                import ipywidgets as w
+                if self._widget is None:
+                    self._tab_widgets = [w.HTML() for _ in TABS]
+                    self._widget = w.Tab(children=self._tab_widgets)
+                    for index, title in enumerate(TABS):
+                        self._widget.set_title(index, title)
+                    display(self._widget)
+                for title, widget in zip(TABS, self._tab_widgets):
+                    widget.value = dashboard_html(self.path, tab=title, metadata=self.metadata, **{**render_options,'fixed_header':self.sections['fixed_header']})
+                markup = None
+            else:
+                markup = dashboard_html(self.path, metadata=self.metadata, **render_options)
+        else:
+            markup = snapshot_html(self.path, **render_options)
+        output = HTML(markup) if markup is not None else None
+        if self.advanced and self.widget_scroll:
+            pass
+        elif self.widget_scroll:
             import ipywidgets as w
             header, body = markup.split('</header>', 1)
             if self._widget is None:

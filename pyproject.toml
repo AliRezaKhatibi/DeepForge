@@ -34,4 +34,4 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-deepforge = ["assets/*.png", "samples/*.csv", "samples/runs/*.csv", "samples/dataset/*/*/*.png", "samples/yolo/images/*/*.png", "samples/yolo/labels/*/*.txt"]
+deepforge = ["assets/*.png", "assets/*.svg", "assets/*.ico", "samples/*.csv", "samples/runs/*.csv", "samples/dataset/*/*/*.png", "samples/yolo/images/*/*.png", "samples/yolo/labels/*/*.txt"]

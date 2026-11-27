@@ -1,8 +1,9 @@
 <div align="center">
-  <img src="src/deepforge/assets/xvarna.png" alt="XVARNA" width="340" />
+  <img src="src/deepforge/assets/deepforge.svg" alt="DeepForge official symbol" width="100" />
   <h1>DeepForge Studio</h1>
   <p><strong>Professional Research Toolkit · Jade Edition</strong></p>
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
+  <p>Developed by XVARNA &amp; Bushehr Machine Vision.</p>
 </div>
 
 ![Version](https://img.shields.io/badge/version-0.7.1.1.2-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
@@ -16,6 +17,23 @@ DeepForge Studio is an early-stage open-source project. Version 0.7.1.1.2 is a r
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
 ## Install and launch
+
+### Advanced training dashboard (development preview)
+
+The advanced notebook monitor provides six views (Training, Metrics, Hardware,
+Model, Dataset and Reports), recorded metric cards, epoch charts and resource
+meters in a responsive jade layout. `build_training_session(...)` selects this
+view by default; set `advanced_dashboard=False` in the saved setup JSON to use
+the previous renderer. Direct `NotebookMonitor(...)` calls retain the original
+renderer unless `advanced=True` is supplied. Missing readings remain explicitly
+unreported. Metric units are those supplied by the training loop.
+
+Call `session.controls()` for cooperative stop, cancel and manual checkpoint
+requests. Manual requests are processed only at a completed, validated epoch
+boundary and use a separate checkpoint store. Widget callback delivery during
+a blocking training cell depends on the notebook frontend; it is not a guarantee
+of asynchronous controls. The new vector logo is a reconstruction of the supplied
+design reference, not a pixel-identical original vector master.
 
 Python 3.10 or later is required. The core toolkit uses only the standard library. Pillow enables image decoding and similarity analysis; PyTorch is optional for model inspection. Tkinter is required only for the desktop application.
 
