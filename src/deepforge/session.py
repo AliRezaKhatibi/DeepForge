@@ -75,6 +75,24 @@ class TrainingSession:
         atomic_json(self.state_path, {"status": "running", **self.metadata})
         return result
 
+    def recovery_panel(self):
+        import ipywidgets as w
+        from IPython.display import display
+        saved = json.loads(self.state_path.read_text(encoding="utf-8"))
+        epoch = saved.get("epoch", 0)
+        label = w.Label(value=f"Saved epoch {epoch} / {self.monitor.epochs}")
+        resume = w.Button(description="Restore training state", button_style="success", disabled=saved["status"] != "paused")
+        def recover(_):
+            try:
+                result = self.restore()
+                label.value = f"Restored. Start training at epoch {result['epoch']+1}"
+                resume.disabled = True
+            except Exception as exc:
+                label.value = f"Recovery failed: {exc}"
+        resume.on_click(recover)
+        display(w.VBox([label,resume]))
+        return resume,label
+
     def controls(self):
         """Optional ipywidgets controls; frontend must deliver callbacks."""
         import ipywidgets as w
