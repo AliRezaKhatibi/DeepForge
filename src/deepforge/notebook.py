@@ -41,3 +41,33 @@ def display_snapshot(path, *, display_id=None):
     """Display or update one notebook output. Caller controls refresh timing."""
     from IPython.display import HTML, display
     return display(HTML(snapshot_html(path)), display_id=display_id)
+
+
+class NotebookMonitor:
+    """Refresh a single inline output from an existing TrainingMonitor snapshot.
+
+    Call refresh from the training thread after recording batches or epochs.
+    No background thread, GUI, or browser server is required.
+    """
+    def __init__(self, path, *, interval=1.0):
+        import math
+        if not math.isfinite(interval) or interval < 0:
+            raise ValueError("interval must be finite and nonnegative")
+        self.path = Path(path)
+        self.interval = interval
+        self._last = None
+        self._handle = None
+
+    def refresh(self, *, force=False):
+        import time
+        from IPython.display import HTML, display
+        now = time.monotonic()
+        if not force and self._last is not None and now - self._last < self.interval:
+            return False
+        output = HTML(snapshot_html(self.path))
+        if self._handle is None:
+            self._handle = display(output, display_id=True)
+        else:
+            self._handle.update(output)
+        self._last = now
+        return True
