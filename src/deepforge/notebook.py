@@ -128,8 +128,7 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
     table = "".join(f"<tr><th>{esc(k)}</th><td>{fmt(v)}</td></tr>" for k,v in rows)
     header_bg = "#123B32" if theme == "jade" else fg
     header_fg = "#ffffff" if theme != "dark" else bg
-    eta = data["eta_seconds"]
-    summary = f'Epoch {data["epoch"]}/{data["epochs"]} · Batch {data["batch"]}/{data["batches_per_epoch"]} · Elapsed {data["elapsed_seconds"]:.1f}s · ETA {eta:.1f}s' if eta is not None else f'Epoch {data["epoch"]}/{data["epochs"]} · Batch {data["batch"]}/{data["batches_per_epoch"]} · ETA unavailable'
+    summary = " · ".join(f"{esc(k)}: {fmt(v)}" for k,v in rows if k in ("Status","Epoch","Batch","Elapsed (s)","ETA (s)","Batches/s"))
     scroll_style = f"max-height:{dashboard_height}px;overflow-y:auto;overscroll-behavior:contain" if fixed_header else ""
     return (f'<section style="background:{bg};color:{fg};padding:16px;border-radius:12px">'
             f'<header style="background:{header_bg};color:{header_fg};padding:12px;border-radius:12px"><h2 style="color:{header_fg};margin:0 0 12px">DeepForge · XVARNA</h2>'
@@ -149,7 +148,11 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, audio=False):
+        from .notebook_setup import AudioAlerts
+        self.audio = AudioAlerts(audio)
+        if not math.isfinite(alert_threshold) or alert_threshold <= 0 or type(alert_patience) is not int or alert_patience < 1:
+            raise ValueError('Invalid alert settings')
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
@@ -179,5 +182,10 @@ class NotebookMonitor:
             self._handle = display(output, display_id=True)
         else:
             self._handle.update(output)
+        if self.audio.enabled:
+            from .epoch_health import epoch_health
+            data = json.loads(self.path.read_text(encoding='utf-8'))
+            health, _ = epoch_health(data.get('epoch_records', {}), data['epoch'], patience=self.sections['alert_patience'], threshold=self.sections['alert_threshold'])
+            self.audio.notify(data['epoch'], health)
         self._last = now
         return True
