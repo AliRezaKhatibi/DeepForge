@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.4.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.5.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.4.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.5.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -245,6 +245,35 @@ optimizer.step()
 ```
 
 Call at optimizer update boundaries, after AMP unscaling when using mixed precision. The norm limit is illustrative, not a universal safe threshold. Missing gradients are reported and optionally rejected with require_all_gradients=True. No gradient clipping, optimizer updates, hooks, or automatic training are performed by DeepForge. Checks synchronize devices and use temporary higher-precision tensors; measure overhead before enabling every step. Sparse COO gradients are supported; other sparse layouts fail closed. A passing report does not establish training convergence or detect every form of vanishing gradients. See examples/pytorch_guard.py for a runnable synthetic example.
+
+## Live training monitor
+
+Run the synthetic demo in one terminal and the independent graphical viewer in another:
+
+```bash
+python examples/live_training.py
+deepforge-live live.json
+```
+
+Use TrainingMonitor from deepforge.monitor in any Python training loop. Call batch(epoch=1, batch=1, samples=16, metrics={"loss": loss}) after each completed batch, using one-based consecutive positions. Call finish() at termination (finish(failed=True) on exceptions). Register output files with artifact(path). One writer per snapshot path; the selected JSON file is replaced atomically. Existing snapshot files at that path are overwritten. Metrics are local, bounded to recent history, and nonfinite values become null. The ETA is based on observed average batch speed, not a guarantee; validation, checkpointing and changing batch lengths can affect it. Sample counts are caller supplied.
+
+For a fresh fixed-length single-process Ultralytics run, register callbacks before training:
+
+```python
+from ultralytics import YOLO
+from deepforge.ultralytics import attach_monitor
+model = YOLO("your-model.yaml")
+attach_monitor(model, "live.json")
+model.train(data="data.yaml", epochs=10)
+```
+
+The adapter is tested against a synthetic callback protocol, not a real Ultralytics training run. It does not support resume, distributed training or changing epoch lengths. Sample counts are not populated by the adapter. The viewer is a separate Tk window and does not interrupt training. It plots recent loss or the first available metric; registered checkpoint names and sizes are displayed without opening the files. A killed process may leave its last snapshot marked running.
+
+### Validation metrics, resources and notebooks
+
+The live viewer provides a selector for available batch metric curves. Call `monitor.epoch_end(epoch, metrics)` after validation to retain epoch-level metrics separately. The Ultralytics adapter records the trainer's reported metrics through the fit-epoch callback. Opt in with `attach_monitor(model, "live.json", resources=True)`; install the resources extra for CPU/RAM measurements. CUDA allocated/reserved bytes describe the current PyTorch allocator, not total GPU utilization. Resource sampling occurs at epoch boundaries. 
+
+In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews, full batch history, and new desktop screenshots are not included.
 
 ## Tests and release verification
 
