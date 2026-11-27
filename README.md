@@ -201,6 +201,21 @@ report = read_binary_scores('examples/scores.csv')
 print(report['roc_auc'])
 ```
 
+### API capability map
+
+| Module | Public entry points | Purpose |
+| --- | --- | --- |
+| datasets | `inspect_dataset` | Dataset inventory and exact duplicates |
+| audit | `audit_images`, `audit_groups`, `audit_yolo` | Image, group and annotation audits |
+| advanced | `read_binary_scores`, `compare_runs` | Probability evaluation and run comparison |
+| models | `inspect_model` | Model parameter and buffer inspection |
+| automation | `run_checks`, `require_pass`, `save_report` | Composable quality gates |
+| training | `TrainingGuard`, `model_check`, `gradient_check` | Pre-update training health checks |
+| monitor | `TrainingMonitor` | Batch progress, ETA, metrics and output files |
+| ultralytics | `attach_monitor` | Opt-in trainer callbacks |
+| resources | `sample_resources` | Optional CPU/RAM and CUDA allocator observations |
+| notebook | `snapshot_html`, `display_snapshot` | Notebook-friendly local snapshots |
+
 ## Automated quality gates (Python integration)
 
 Install directly from GitHub (PyPI publication is not yet available):
@@ -274,6 +289,10 @@ The adapter is tested against a synthetic callback protocol, not a real Ultralyt
 The live viewer provides a selector for available batch metric curves. Call `monitor.epoch_end(epoch, metrics)` after validation to retain epoch-level metrics separately. The Ultralytics adapter records the trainer's reported metrics through the fit-epoch callback. Opt in with `attach_monitor(model, "live.json", resources=True)`; install the resources extra for CPU/RAM measurements. CUDA allocated/reserved bytes describe the current PyTorch allocator, not total GPU utilization. Resource sampling occurs at epoch boundaries. 
 
 In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews, full batch history, and new desktop screenshots are not included.
+
+### Reproducing live monitor screenshots
+
+The [Live monitor gallery workflow](https://github.com/AliRezaKhatibi/DeepForge/actions/workflows/live-gallery.yml) runs the actual desktop viewer under Xvfb and captures its window using synthetic metrics. Download the `deepforge-live-gallery` artifact from a successful run. The HTML file is the actual notebook renderer output. These are demonstrations, not trained-model benchmarks.
 
 ## Tests and release verification
 
