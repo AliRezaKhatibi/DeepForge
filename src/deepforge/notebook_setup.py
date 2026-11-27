@@ -18,6 +18,8 @@ def setup_panel(path):
     diagnostics = w.Checkbox(description="Visual warnings", value=True)
     resources = w.Checkbox(description="Hardware monitoring", value=True)
     sensitivity = w.Dropdown(description="Sensitivity", options=[("Sensitive",2),("Balanced",3),("Conservative",5)], value=3)
+    scroll = w.Checkbox(description="Stable scroll container", value=True)
+    gradient = w.FloatText(description="Gradient limit", value=100.0)
     destination = w.Text(description="Storage path", value=str(path.parent))
     save = w.Button(description="Save configuration", button_style="success")
     result = w.Label()
@@ -26,12 +28,13 @@ def setup_panel(path):
                       theme=theme.value,max_epochs=cards.value,interval=refresh.value,
                       keep_last=retention.value,periodic=periodic.value,audio=audio.value,
                       show_diagnostics=diagnostics.value,show_resources=resources.value,
-                      alert_patience=sensitivity.value,storage=destination.value)
+                      alert_patience=sensitivity.value,storage=destination.value,
+                      widget_scroll=scroll.value,gradient_threshold=gradient.value)
         path.parent.mkdir(parents=True,exist_ok=True)
         atomic_json(path,config)
         result.value="Configuration saved"
     save.on_click(commit)
-    display(w.VBox([w.HTML("<h2 style='color:#24765c'>DeepForge Studio · Training setup</h2>"),overall,metrics,theme,cards,refresh,diagnostics,resources,sensitivity,audio,periodic,retention,destination,save,result]))
+    display(w.VBox([w.HTML("<h2 style='color:#24765c'>DeepForge Studio · Training setup</h2>"),overall,metrics,theme,cards,refresh,diagnostics,resources,sensitivity,gradient,scroll,audio,periodic,retention,destination,save,result]))
     return save
 
 class AudioAlerts:
@@ -68,7 +71,8 @@ def build_training_session(config_path, *, run_id, epochs, batches_per_epoch, mo
         resource_interval=2 if config["show_resources"] else None)
     keys = ("epoch_metrics","overall_fields","theme","max_epochs","interval",
             "audio","show_diagnostics","show_resources","alert_patience")
-    view = NotebookMonitor(monitor.path, **{k:config[k] for k in keys})
+    view = NotebookMonitor(monitor.path, widget_scroll=config.get("widget_scroll",False),
+        gradient_threshold=config.get("gradient_threshold",100.0), **{k:config[k] for k in keys})
     checkpoint = TorchCheckpoint(store, model, optimizer, scheduler=scheduler,
         scaler=scaler, sampler=sampler, monitor=monitor,
         refresh=lambda: view.refresh(force=True))
