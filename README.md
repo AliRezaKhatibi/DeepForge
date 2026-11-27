@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.3.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.4.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.3.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.4.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -228,6 +228,23 @@ require_pass(report)  # Raises AuditFailed if a check fails or errors.
 The default classification dataset gate requires nonempty train, val (or validation), and test splits, and zero exact cross-split duplicates. Adjust required_splits explicitly for other protocols. Group checks require a complete, correct manifest. Optional image and YOLO gates and in-memory classification metrics are also available. Install the images extra for image decoding. Similarity matches require human review; passing these configured checks is not proof of dataset independence. A truncated image scan fails the image gate. Reports may contain sensitive paths and must be reviewed before sharing. Report exports refuse to overwrite existing files.
 
 Run a gate in CI or before training with `python examples/quality_gate.py dataset --groups groups.csv`. Custom checks use `Check(name, callable, rules)`, where rules are tuples of (dotted report field, comparison operator, expected value). Supported operators: eq, ne, ge, gt, le, lt. Missing fields and execution errors fail closed. An empty rule set checks execution only.
+
+## PyTorch training health guard
+
+Install the optional PyTorch dependency using the appropriate official wheel for your device. DeepForge remains importable without PyTorch.
+
+```python
+from deepforge.training import TrainingGuard
+
+guard = TrainingGuard(model, max_gradient_norm=100)
+optimizer.zero_grad(set_to_none=True)
+loss = criterion(model(inputs), targets)
+loss.backward()
+guard.before_step(loss)  # Raises AuditFailed on nonfinite loss/gradients or configured norm violation.
+optimizer.step()
+```
+
+Call at optimizer update boundaries, after AMP unscaling when using mixed precision. The norm limit is illustrative, not a universal safe threshold. Missing gradients are reported and optionally rejected with require_all_gradients=True. No gradient clipping, optimizer updates, hooks, or automatic training are performed by DeepForge. Checks synchronize devices and use temporary higher-precision tensors; measure overhead before enabling every step. Sparse COO gradients are supported; other sparse layouts fail closed. A passing report does not establish training convergence or detect every form of vanishing gradients. See examples/pytorch_guard.py for a runnable synthetic example.
 
 ## Tests and release verification
 
