@@ -84,3 +84,13 @@ def test_manifest_publication_failure_preserves_previous(tmp_path, monkeypatch):
     assert not (store.root / ".writer.lock").exists()
     monkeypatch.setattr(checkpoint, "atomic_json", original)
     assert store.save(2, b"recovered").read_bytes() == b"recovered"
+
+
+def test_quota_preserves_two_generations(tmp_path):
+    store = CheckpointStore(tmp_path, "run", CheckpointPolicy(max_bytes=8))
+    store.save(1, b"1234")
+    store.save(2, b"5678")
+    with pytest.raises(OSError, match="quota exceeded"):
+        store.save(3, b"next")
+    assert store.latest().read_bytes() == b"5678"
+    assert (store.root / "epoch-1.bin").read_bytes() == b"1234"
