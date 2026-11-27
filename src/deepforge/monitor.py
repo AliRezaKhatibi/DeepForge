@@ -31,6 +31,7 @@ class TrainingMonitor:
         self.history = []
         self.metrics = {}
         self.epoch_history = []
+        self.epoch_records = {}
         self.resources = {}
         self.artifacts = []
         self.status = "running"
@@ -66,6 +67,8 @@ class TrainingMonitor:
         self.completed = step
         self.samples += samples
         self.metrics = values
+        if batch == self.batches:
+            self.epoch_records.setdefault(epoch, {})["training"] = dict(values)
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
         self._append({"event": "batch", "step": step, "samples": samples, "metrics": values, "labels": distribution})
@@ -82,8 +85,28 @@ class TrainingMonitor:
         for key, raw in metrics.items():
             value = float(raw.detach().item() if hasattr(raw, "detach") else raw)
             values[str(key)] = value if math.isfinite(value) else None
+        self.epoch_records.setdefault(epoch, {})["validation"] = dict(values)
         self.epoch_history.append({"epoch": epoch, "metrics": values})
         self._append({"event": "epoch", "epoch": epoch, "metrics": values})
+        self._publish(force=True)
+
+    def record_stage(self, epoch, stage, status, *, completed=None, total=None):
+        """Record an explicitly observed validation or checkpoint stage."""
+        _count(epoch, "epoch", 1)
+        if self.status != "running" or epoch > self.completed // self.batches:
+            raise ValueError("Epoch training has not completed or monitor has stopped")
+        if stage not in ("validation", "checkpoint", "verification"):
+            raise ValueError("Unknown stage")
+        if status not in ("running", "completed", "failed", "skipped"):
+            raise ValueError("Unknown stage status")
+        if completed is not None or total is not None:
+            _count(completed, "completed")
+            _count(total, "total", 1)
+            if completed > total or (status == "completed" and completed != total):
+                raise ValueError("Invalid stage progress")
+        item = {"status": status, "completed": completed, "total": total}
+        self.epoch_records.setdefault(epoch, {}).setdefault("stages", {})[stage] = item
+        self._append({"event": "stage", "epoch": epoch, "stage": stage, **item})
         self._publish(force=True)
 
     def _append(self, event):
@@ -132,6 +155,7 @@ class TrainingMonitor:
                 "eta_seconds": (total - self.completed) / rate if rate and self.status == "running" else (0 if self.status == "completed" else None),
                 "metrics": dict(self.metrics), "history": list(self.history),
                 "artifacts": list(self.artifacts), "epoch_history": list(self.epoch_history),
+                "epoch_records": {str(k): v for k, v in self.epoch_records.items()},
                 "resources": dict(self.resources), "diagnostics": diagnose(self.epoch_history, **self.diagnostic_options),
                 "batch_distribution": dict(self.batch_distribution), "preview_png": self.preview}
 
