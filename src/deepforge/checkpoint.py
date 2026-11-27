@@ -95,6 +95,13 @@ class CheckpointStore:
                 continue
         return sorted(records, key=lambda item: item[0], reverse=True)
 
+    def recover_abandoned_lock(self, *, confirmed_no_writer: bool = False):
+        """Explicit recovery only after operator confirms all writers stopped."""
+        if not confirmed_no_writer:
+            raise ValueError("confirm that all writers have stopped before unlocking")
+        (self.root / ".writer.lock").unlink(missing_ok=True)
+        logging.getLogger(__name__).warning("checkpoint_lock_recovered")
+
     def latest(self):
         records = self._records()
         return records[0][1] if records else None
