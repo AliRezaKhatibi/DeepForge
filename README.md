@@ -446,7 +446,7 @@ Pass `monitor=monitor, refresh=lambda: view.refresh(force=True)` to TorchCheckpo
 
 ### Fixed notebook header
 
-`NotebookMonitor(path, dashboard_height=480, fixed_header=True, max_epochs=20)` keeps the summary outside the independently scrolling details region and shows the latest 20 reached epochs, newest first, plus the next pending epoch if applicable. Earlier epochs remain in the snapshot and automatic `<snapshot>.epochs.jsonl` log. Set `max_epochs=None` to render all cards. Notebook output replacement may reset scroll position or expanded details; the header remains outside the inner scroll area. The default epoch log appends run start, training epoch, validation, stage and finish events; explicit archive paths retain batch events too.
+`NotebookMonitor(path, dashboard_height=480, fixed_header=True, max_epochs=20)` keeps the summary outside the independently scrolling details region and shows the latest 20 reached epochs, oldest first within the latest reached epochs, with the newest at the bottom. Earlier epochs remain in the snapshot and automatic `<snapshot>.epochs.jsonl` log. Set `max_epochs=None` to render all cards. Notebook output replacement may reset scroll position or expanded details; the header remains outside the inner scroll area. The default epoch log appends run start, training epoch, validation, stage and finish events; explicit archive paths retain batch events too.
 
 
 ### Interactive PyTorch sessions (0.7.1.1.2)
@@ -480,3 +480,231 @@ remain in the JSONL log. Browser audio autoplay and widget callbacks during
 a blocking training cell are frontend-dependent; use a cooperative loop
 or a supported external control mechanism. The recovery API requires an
 identically configured model and dataset; it does not recreate user code.
+
+## Complete training quickstart: Colab, Kaggle, Jupyter and VS Code
+
+The distribution name is **deepforge-research-toolkit**, while the Python import is **deepforge**. The following examples target release 0.7.1.1.2.
+
+### 1. Installation and environment
+
+In Colab or Kaggle, run in a notebook cell (enable Internet in Kaggle for downloads):
+
+```python
+%pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.2"
+```
+
+In Colab only, enable widgets:
+
+```python
+from google.colab import output
+output.enable_custom_widget_manager()
+```
+
+For VS Code or local Jupyter, create an environment in a terminal:
+
+```bash
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+python -m pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.2" ipykernel jupyterlab
+python -m pip install torch torchvision
+python -m ipykernel install --user --name deepforge-demo
+```
+
+For GPU use, install the appropriate PyTorch build from https://pytorch.org/get-started/locally/ instead of assuming the default wheel supports your hardware. In VS Code install the Python and Jupyter extensions, open an .ipynb file and select the deepforge-demo kernel. For JupyterLab run `jupyter lab`. Hosted notebooks normally already provide torch and torchvision; avoid replacing working CUDA builds unnecessarily. Restart the kernel after changing already-imported dependencies.
+
+```python
+from importlib.metadata import version
+import torch
+print(version("deepforge-research-toolkit"))
+print(torch.cuda.is_available())
+```
+
+### 2. Independent classification demo
+
+Run this cell once. The example uses a fixed disjoint subset of MNIST training data; the official test split is untouched. This is a functional demo, not a benchmark.
+
+```python
+import hashlib
+import json
+import uuid
+from pathlib import Path
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, Subset
+from torchvision.datasets import MNIST
+from torchvision.transforms import ToTensor
+
+torch.manual_seed(42)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+EPOCHS = 5
+dataset = MNIST("data", train=True, download=True, transform=ToTensor())
+indices = torch.randperm(len(dataset), generator=torch.Generator().manual_seed(42)).tolist()
+train_ids, val_ids = indices[:12000], indices[12000:15000]
+train_loader = DataLoader(Subset(dataset, train_ids), batch_size=128, shuffle=True, num_workers=0)
+val_loader = DataLoader(Subset(dataset, val_ids), batch_size=128, shuffle=False, num_workers=0)
+fingerprint = hashlib.sha256(json.dumps([train_ids, val_ids]).encode()).hexdigest()
+
+def make_model():
+    model = nn.Sequential(nn.Flatten(), nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10)).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    return model, optimizer
+
+model, optimizer = make_model()
+criterion = nn.CrossEntropyLoss()
+```
+
+### 3. Configure the dashboard
+
+```python
+from deepforge.notebook_setup import setup_panel
+setup_panel("deepforge_config.json")
+```
+
+Select metrics, theme, refresh interval, visible epoch count, hardware sampling, warning sensitivity, audio and checkpoint retention. Click **Save configuration** before continuing. Select a durable storage path for recovery across runtimes. In Colab, optionally mount Drive first:
+
+```python
+from google.colab import drive
+drive.mount("/content/drive")
+# Enter /content/drive/MyDrive/deepforge_runs in Storage path.
+```
+
+Local Colab storage disappears when the runtime is deleted. Kaggle working storage must be exported or saved as an output; a new session is not guaranteed to retain it. Drive filesystem durability is not guaranteed.
+
+### 4. Create a fresh session
+
+```python
+from deepforge.notebook_setup import build_training_session
+from deepforge.training import TrainingGuard
+
+RUN_ID = "mnist_" + uuid.uuid4().hex[:12]
+metadata = {"dataset": "MNIST", "split_fingerprint": fingerprint,
+            "model": "MLP128", "batch_size": 128, "seed": 42}
+def make_session():
+    return build_training_session(
+        "deepforge_config.json", run_id=RUN_ID, epochs=EPOCHS,
+        batches_per_epoch=len(train_loader), model=model,
+        optimizer=optimizer, experiment_metadata=metadata)
+
+monitor, view, checkpoint, session = make_session()
+guard = TrainingGuard(model, max_gradient_norm=100)
+session.controls()
+view.refresh(force=True)
+print(RUN_ID, session.root)
+```
+
+Keep RUN_ID and the saved configuration for recovery. For a new independent experiment recreate model and optimizer, then generate a new RUN_ID and monitor. Do not reuse a completed monitor.
+
+### 5. Training, validation and verified checkpoints
+
+Run the following cell. Set demo_stop=True to test safe pause reproducibly without depending on browser callbacks.
+
+```python
+def train(start_epoch=1, global_step=0, demo_stop=False):
+    assert monitor.status == "running"
+    assert monitor.batches == len(train_loader)
+    assert monitor.completed == (start_epoch - 1) * monitor.batches
+    assert len(val_loader) > 0
+    try:
+        for epoch in range(start_epoch, EPOCHS + 1):
+            model.train()
+            loss_sum = correct = count = 0
+            for batch, (x, y) in enumerate(train_loader, 1):
+                x, y = x.to(device), y.to(device)
+                optimizer.zero_grad(set_to_none=True)
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                guard.before_step(loss)
+                norm = sum(p.grad.detach().float().square().sum().item()
+                           for p in model.parameters() if p.grad is not None) ** 0.5
+                optimizer.step()
+                global_step += 1
+                loss_sum += loss.item() * y.size(0)
+                correct += (logits.argmax(1) == y).sum().item()
+                count += y.size(0)
+                monitor.batch(epoch=epoch, batch=batch, samples=y.size(0),
+                              metrics={"loss": loss_sum/count, "accuracy": 100*correct/count,
+                                       "lr": optimizer.param_groups[0]["lr"], "gradient_norm": norm})
+                session.poll_control()
+                view.refresh()
+            model.eval()
+            loss_sum = correct = count = 0
+            monitor.record_stage(epoch, "validation", "running", completed=0, total=len(val_loader))
+            with torch.no_grad():
+                for batch, (x, y) in enumerate(val_loader, 1):
+                    x, y = x.to(device), y.to(device)
+                    logits = model(x)
+                    loss_sum += criterion(logits, y).item() * y.size(0)
+                    correct += (logits.argmax(1) == y).sum().item()
+                    count += y.size(0)
+                    monitor.record_stage(epoch, "validation", "running", completed=batch, total=len(val_loader))
+                    view.refresh()
+            monitor.epoch_end(epoch, {"loss": loss_sum/count, "accuracy": 100*correct/count})
+            monitor.record_stage(epoch, "validation", "completed", completed=len(val_loader), total=len(val_loader))
+            if demo_stop and epoch == 1:
+                session.request_stop(after_next=True)
+            if session.epoch_boundary(epoch, global_step=global_step):
+                return
+            checkpoint.save_epoch(epoch, global_step=global_step, metadata=session.metadata)
+            view.refresh(force=True)
+        monitor.finish()
+    except Exception:
+        if monitor.status == "running":
+            monitor.finish(failed=True)
+        raise
+    finally:
+        view.refresh(force=True)
+
+train(demo_stop=True)
+```
+
+Expected demo outcome: paused after epoch 2 of 5, with validation and verified recovery checkpoint. Set demo_stop=False for uninterrupted training. Accuracy is expressed as a percentage. Add scheduler.step() before epoch_boundary if using a scheduler and pass that scheduler to build_training_session. Precision, recall, F1 and detection mAP must be computed by the caller; selecting a metric does not calculate it automatically.
+
+### 6. Resume a paused session
+
+Recreate the same architecture, optimizer, data split, epoch count, configuration and RUN_ID. In a fresh runtime rerun the definitions above without generating a different RUN_ID or starting training first.
+
+```python
+model, optimizer = make_model()
+monitor, view, checkpoint, session = make_session()
+guard = TrainingGuard(model, max_gradient_norm=100)
+state = session.restore()
+session.controls()
+train(start_epoch=state["epoch"] + 1, global_step=state["global_step"])
+```
+
+Expected outcome: epochs 3 through 5, status completed. The recovery adapter restores model, optimizer, Python/PyTorch RNG and optional supplied stateful components. Exact reproducibility is not guaranteed across hardware, workers or nondeterministic operations. The example fingerprint identifies split indices, not dataset file contents; use full dataset provenance for research. Do not call restore twice for the same paused state. Use trusted checkpoints only.
+
+### 7. Warning and sound smoke test
+
+```python
+from deepforge.notebook_setup import AudioAlerts
+AudioAlerts(enabled=True).notify(1, "Severe overfitting warning")
+```
+
+This tests audio output, not real overfitting. Actual warnings depend on recorded training and validation loss trends. Browser autoplay may require interaction. Widget stop callbacks may be delayed by a blocking notebook cell; the programmatic demo above is the reliable boundary test. No automatic early stopping is implied.
+
+### 8. Terminal and troubleshooting
+
+For a regular Python script use TrainingMonitor and the same batch/epoch API without notebook widgets. In a second local terminal run `deepforge-live PATH_TO_RUN/live.json` to view the desktop monitor. A separate process can queue a stop using the run's control file:
+
+```python
+from deepforge.control import StopControl
+StopControl("PATH_TO_RUN/control.json").request(after_next=True)
+```
+
+Replace PATH_TO_RUN with the printed session.root. The training loop must poll control and honor epoch_boundary. For headless servers use the JSON snapshot and epoch JSONL archive instead of Tk.
+
+| Error | Resolution |
+| --- | --- |
+| No matching distribution | Use deepforge-research-toolkit, not deepforge, and check the requested version and Python compatibility. |
+| Monitor already finished | Create a new session for a new run; use restore for a paused run. |
+| val_loader is not defined | Execute the dataset cell before training. |
+| Epoch training has not completed or monitor has stopped | Match batches_per_epoch to len(train_loader), record every batch in order, and validate only after the last training batch. |
+| Configuration file missing | Click Save configuration in the setup cell. |
+| Widget output missing | Select the correct kernel, enable Colab widgets if applicable, and restart after dependency changes. |
+| JavaScript text causes SyntaxError | Remove browser stack traces from Python cells; copy only code. |
+| PyPI file already exists | The release file cannot be overwritten; verify the published version instead of repeatedly uploading. |
+
+The dashboard is not a trainer: the caller owns data, model, optimization and validation. Hosted browser behavior and GPU recovery require environment-specific testing. These examples are documentation, not a claim of successful execution on every platform.
