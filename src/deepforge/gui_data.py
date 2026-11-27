@@ -13,7 +13,7 @@ TOOLS = {
     "Leakage": ("Leakage detector", "Find byte-identical images across dataset splits."),
     "Training": ("Training analyzer", "Identify the best epoch and inspect learning curves."),
     "Metrics": ("Classification evaluator", "Compare predictions and visualize the confusion matrix."),
-    "Model": ("Model inspector", "Inspect a locally constructed PyTorch MLP; no checkpoint loading."),
+    "Model": ("Model inspector", "Profile a locally constructed PyTorch MLP: parameters, tensor shapes, MACs and latency."),
     "Environment": ("Environment inspector", "Review Python, PyTorch and CUDA availability."),
     "Images": ("Image integrity & similarity", "Decode images and flag bounded cross-split perceptual matches."),
     "Groups": ("Group leakage audit", "Detect patient, subject or group IDs shared across splits."),
@@ -42,14 +42,8 @@ def analyze(tool, options):
         chart = {"type": "matrix", "labels": report["labels"], "values": report["confusion_matrix"]}
     elif tool == "Model":
         sizes = [int(options[k]) for k in ("inputs", "hidden", "outputs")]
-        if any(n < 1 or n > 4096 for n in sizes):
-            raise ValueError("Layer widths must be integers between 1 and 4096.")
-        if sizes[0]*sizes[1] + sizes[1]*sizes[2] > 10_000_000:
-            raise ValueError("The preview model is limited to 10 million weights.")
-        import torch
-        model = torch.nn.Sequential(torch.nn.Linear(sizes[0], sizes[1]), torch.nn.ReLU(), torch.nn.Linear(sizes[1], sizes[2]))
-        report = inspect_model(model)
-        report["architecture"] = sizes
+        from .profiler import profile_mlp
+        report = profile_mlp(*sizes, warmup=1, repeats=3)
         chart = {"type": "bars", "values": [("Trainable", report["trainable_parameters"]), ("Frozen", report["frozen_parameters"])]}
     elif tool == "Images":
         report = audit_images(options['path'], similarity=options.get('similarity', 'yes') == 'yes', threshold=int(options.get('threshold', '4')), max_images=int(options.get('max_images', '2000')))

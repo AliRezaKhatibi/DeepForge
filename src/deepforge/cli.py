@@ -61,6 +61,13 @@ def main(argv=None):
     compare.add_argument("--max-runs", type=int, default=100)
     manifest = commands.add_parser("manifest", help="Capture versions and optional file checksum")
     manifest.add_argument("file", nargs="?")
+    profile = commands.add_parser("profile-mlp", help="Profile a bounded built-in CPU MLP")
+    profile.add_argument("--inputs", type=int, default=16)
+    profile.add_argument("--hidden", type=int, default=32)
+    profile.add_argument("--outputs", type=int, default=3)
+    profile.add_argument("--batch", type=int, default=1)
+    profile.add_argument("--warmup", type=int, default=2)
+    profile.add_argument("--repeats", type=int, default=5)
     args = parser.parse_args(argv)
     try:
         if args.command in {"dataset", "leakage"}:
@@ -82,6 +89,10 @@ def main(argv=None):
         elif args.command == "compare":
             report = compare_runs(args.directory, metric=args.metric, mode=args.mode, train_metric=args.train_metric,
                                   epoch_column=args.epoch_column, max_runs=args.max_runs)
+        elif args.command == "profile-mlp":
+            from .profiler import profile_mlp
+            report = profile_mlp(args.inputs, args.hidden, args.outputs, batch=args.batch,
+                                 warmup=args.warmup, repeats=args.repeats)
         elif args.command == "manifest":
             report = reproducibility_manifest(args.file)
         else:
