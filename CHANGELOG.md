@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 - Live training monitoring candidate
+
+- Added atomic local training snapshots, progress, throughput, ETA, bounded metric history and output metadata.
+- Added independent jade-themed desktop live viewer and opt-in Ultralytics callback adapter.
+- Added synthetic demo and tests; retained existing Studio, CLI and Python APIs.
+
 ## 0.4.0 - Automation and training health release candidate
 
 - Added composable Python quality gates for dataset, group, image, YOLO and classification checks.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepforge-research-toolkit"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local-first deep learning research studio and dataset validation toolkit"
 authors = [{name = "Alireza Khatibi"}]
 readme = "README.md"
@@ -21,6 +21,7 @@ torch = ["torch"]
 [project.scripts]
 deepforge = "deepforge.cli:main"
 deepforge-studio = "deepforge.gui:main"
+deepforge-live = "deepforge.live_view:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
