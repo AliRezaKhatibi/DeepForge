@@ -17,9 +17,9 @@ class TorchCheckpoint:
 
     def save_epoch(self, epoch, *, global_step, metadata, best=False):
         from .checkpoint_reporting import report_save
-        return report_save(self.store, epoch, best, lambda: self._save(epoch, global_step, metadata, best), self.monitor, self.refresh)
+        return report_save(self.store, epoch, best, lambda progress: self._save(epoch, global_step, metadata, best, progress), self.monitor, self.refresh, byte_progress=True)
 
-    def _save(self, epoch, global_step, metadata, best):
+    def _save(self, epoch, global_step, metadata, best, progress):
         import torch
         state = {
             "schema": 1, "epoch": epoch, "global_step": global_step,
@@ -39,7 +39,7 @@ class TorchCheckpoint:
             state["cuda_rng"] = torch.cuda.get_rng_state_all()
         stream = io.BytesIO()
         torch.save(state, stream)
-        return self.store.save(epoch, stream.getvalue(), best=best)
+        return self.store.save(epoch, stream.getvalue(), best=best, progress=progress)
 
     def restore_latest(self, *, expected_metadata):
         import torch
