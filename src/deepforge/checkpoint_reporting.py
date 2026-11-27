@@ -2,10 +2,10 @@
 import json
 from .checkpoint import verify_payload
 
-def report_save(store, epoch, best, save, monitor=None, refresh=None):
-    def report(stage, status):
+def report_save(store, epoch, best, save, monitor=None, refresh=None, *, byte_progress=False):
+    def report(stage, status, **counts):
         if monitor is not None:
-            monitor.record_stage(epoch, stage, status)
+            monitor.record_stage(epoch, stage, status, **counts)
             if refresh is not None:
                 refresh()
     if not store.policy.enabled or (epoch % store.policy.save_every_epochs and not best):
@@ -14,7 +14,15 @@ def report_save(store, epoch, best, save, monitor=None, refresh=None):
         return None
     report("checkpoint", "running")
     try:
-        path = save()
+        import time
+        last = -float('inf')
+        def progress(done, total):
+            nonlocal last
+            now = time.monotonic()
+            if done == total or now - last >= 0.5:
+                report('checkpoint', 'running', completed=done, total=total)
+                last = now
+        path = save(progress if monitor is not None else None) if byte_progress else save()
     except Exception:
         report("checkpoint", "failed")
         raise
