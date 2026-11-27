@@ -55,7 +55,7 @@ def test_long_run_card_window(tmp_path):
     assert html.count("<article ") == 12
     assert "Epoch 510 / 510" in html
     assert "Epoch 1 / 510" not in html
-    assert "Earlier epochs (498)" in html
+    assert "498 earlier epochs retained" in html
     assert len(monitor.snapshot()["history"]) == 10
     assert len(monitor.snapshot()["epoch_records"]) == 510
     assert len(html) < 150000
@@ -110,9 +110,14 @@ def test_fixed_header_all_epochs(tmp_path):
         monitor.batch(epoch=epoch, batch=1)
     monitor.finish()
     html = snapshot_html(path, dashboard_height=320)
-    assert html.count("<article ") == 25
+    assert html.count("<article ") == 20
+    assert "Epoch 1 / 25" not in html
+    assert "Epoch 6 / 25" in html
+    assert "5 earlier epochs retained" in html
+    events = [json.loads(line) for line in path.with_name(path.name + ".epochs.jsonl").read_text().splitlines()]
+    assert [e["epoch"] for e in events if e["event"] == "training_epoch"] == list(range(1, 26))
     assert html.index("Overall training progress") < html.index("</header>") < html.index("overflow-y:auto")
-    assert html.index("Epoch 25 / 25") < html.index("Epoch 1 / 25")
+    assert html.index("Epoch 25 / 25") < html.index("Epoch 6 / 25")
     assert "max-height:320px" in html
     assert "overflow-y:auto" not in snapshot_html(path, fixed_header=False)
     with pytest.raises(ValueError):
