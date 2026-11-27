@@ -101,3 +101,19 @@ def test_long_run_python_allocation(tmp_path):
         assert peak < 32 * 1024 * 1024
     finally:
         tracemalloc.stop()
+
+
+def test_fixed_header_all_epochs(tmp_path):
+    path = tmp_path / "all.json"
+    monitor = TrainingMonitor(path, epochs=25, batches_per_epoch=1)
+    for epoch in range(1, 26):
+        monitor.batch(epoch=epoch, batch=1)
+    monitor.finish()
+    html = snapshot_html(path, dashboard_height=320)
+    assert html.count("<article ") == 25
+    assert html.index("Overall training progress") < html.index("</header>") < html.index("overflow-y:auto")
+    assert html.index("Epoch 25 / 25") < html.index("Epoch 1 / 25")
+    assert "max-height:320px" in html
+    assert "overflow-y:auto" not in snapshot_html(path, fixed_header=False)
+    with pytest.raises(ValueError):
+        snapshot_html(path, dashboard_height=0)
