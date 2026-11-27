@@ -5,9 +5,11 @@ import math
 from pathlib import Path
 
 
-def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True):
-    if type(max_epochs) is not int or max_epochs < 2:
-        raise ValueError("max_epochs must be an integer >= 2")
+def snapshot_html(path, *, max_epochs=None, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
+    if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
+        raise ValueError("max_epochs must be None or an integer >= 2")
+    if type(dashboard_height) is not int or dashboard_height < 120:
+        raise ValueError('dashboard_height must be an integer >= 120')
     palettes = {"jade": ("#F3EFE5", "#123B32", "#ffffff"), "light": ("#ffffff", "#17212b", "#f5f5f5"), "dark": ("#17212b", "#f3efe5", "#253344")}
     if theme not in palettes:
         raise ValueError("Unknown theme")
@@ -53,9 +55,9 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
     records = data.get("epoch_records", {})
     current = max(1, data["epoch"])
     last = min(data["epochs"], current + 1)
-    first = max(1, last - max_epochs + 1)
+    first = 1 if max_epochs is None else max(1, last - max_epochs + 1)
     cards = []
-    for epoch in range(first, last + 1) if show_epochs else ():
+    for epoch in range(last, first - 1, -1) if show_epochs else ():
         done = max(0, min(data["batches_per_epoch"], data["completed_batches"] - (epoch - 1) * data["batches_per_epoch"]))
         percent = 100 * done / data["batches_per_epoch"]
         record = records.get(str(epoch), {})
@@ -120,10 +122,15 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
                 lines.extend(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="2" fill="{color}"/>' for x,y in coords)
             charts.append(f'<div><strong>{metric.title()} per epoch</strong><svg viewBox="0 0 300 100" role="img" aria-label="{metric} history" style="width:100%;max-width:600px">{"".join(lines)}</svg><div>Training (green) · Validation (gold) · Range {low:.4f}–{high:.4f}</div></div>')
     table = "".join(f"<tr><th>{esc(k)}</th><td>{fmt(v)}</td></tr>" for k,v in rows)
+    header_bg = "#123B32" if theme == "jade" else fg
+    header_fg = "#ffffff" if theme != "dark" else bg
+    eta = data["eta_seconds"]
+    summary = f'Epoch {data["epoch"]}/{data["epochs"]} · Batch {data["batch"]}/{data["batches_per_epoch"]} · Elapsed {data["elapsed_seconds"]:.1f}s · ETA {eta:.1f}s' if eta is not None else f'Epoch {data["epoch"]}/{data["epochs"]} · Batch {data["batch"]}/{data["batches_per_epoch"]} · ETA unavailable'
+    scroll_style = f"max-height:{dashboard_height}px;overflow-y:auto;overscroll-behavior:contain" if fixed_header else ""
     return (f'<section style="background:{bg};color:{fg};padding:16px;border-radius:12px">'
-            f'<h2 style="color:{fg};margin:0 0 12px">DeepForge · XVARNA</h2>'
-            f'{overall}'
-            f'{"".join(cards)}{archive}{hardware}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</section>')
+            f'<header style="background:{header_bg};color:{header_fg};padding:12px;border-radius:12px"><h2 style="color:{header_fg};margin:0 0 12px">DeepForge · XVARNA</h2>'
+            f'{overall}<div>{summary}</div></header><div style="{scroll_style}" role="region" aria-label="Training details" tabindex="0">'
+            f'{"".join(cards)}{archive}{hardware}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</div></section>')
 
 
 def display_snapshot(path, *, display_id=None):
@@ -138,18 +145,20 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True):
+    def __init__(self, path, *, interval=1.0, max_epochs=None, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
-        if type(max_epochs) is not int or max_epochs < 2:
-            raise ValueError("max_epochs must be an integer >= 2")
+        if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
+            raise ValueError("max_epochs must be None or an integer >= 2")
+        if type(dashboard_height) is not int or dashboard_height < 120:
+            raise ValueError('dashboard_height must be an integer >= 120')
         self.max_epochs = max_epochs
         self.show_stages = show_stages
         self.show_charts = show_charts
         self.show_resources = show_resources
         self.theme = theme
-        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall)
+        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall, fixed_header=fixed_header, dashboard_height=dashboard_height)
         self.path = Path(path)
         self.interval = interval
         self._last = None
