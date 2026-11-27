@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - Automation and training health release candidate
+
+- Added composable Python quality gates for dataset, group, image, YOLO and classification checks.
+- Added explicit PyTorch loss and gradient health guards, optional model parameter budget and custom gradient norm limits.
+- Added synthetic training example and automated tests; retained all desktop and CLI features.
+
 ## 0.3.0 - Jade Edition release candidate
 
 - Redesigned Studio with a cream canvas, deep jade navigation and restrained gold accents.
