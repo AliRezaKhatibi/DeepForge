@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.7.1-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.7.1.1-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.7.1 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.7.1.1 is a release candidate for research and development, not a clinically validated product or a certified production service. It is published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -43,10 +43,10 @@ The Windows launch scripts have been inspected but not run on Windows in the rel
 
 ### Google Colab and VS Code notebooks
 
-In Colab, install into the active kernel:
+In Colab, install into the active kernel without upgrading its preinstalled IPython:
 
 ```python
-%pip install "deepforge-research-toolkit[notebook] @ git+https://github.com/AliRezaKhatibi/DeepForge.git"
+%pip install deepforge-research-toolkit==0.7.1.1
 ```
 
 In VS Code, install the Python and Jupyter extensions, select your Python environment as the notebook kernel, and run `%pip install -e ".[notebook]"` from the repository root in that kernel. Restart the kernel if upgrading an already imported package.
@@ -233,7 +233,7 @@ print(report['roc_auc'])
 
 ## Automated quality gates (Python integration)
 
-Install directly from GitHub (PyPI publication is not yet available):
+Install directly from GitHub for development builds:
 
 ```bash
 python -m pip install "git+https://github.com/AliRezaKhatibi/DeepForge.git"
@@ -346,7 +346,7 @@ The Model workspace now profiles the built-in MLP, with executed call details in
 
 Latency measures a complete uninstrumented forward after warmup, on CPU or synchronized CUDA devices, with median and nearest-rank p95 in milliseconds. Set repeats=0 to disable timing. Measurements depend on batch size, hardware and load. The logical output byte sum is not peak activation memory; CUDA allocator before/after values are process-wide, not model-specific peak VRAM. Model evaluation flags and hooks are restored, but arbitrary custom forwards can still mutate state or consume RNG; profile trusted code only, never concurrently on a training model. GPU timing is not yet verified on real CUDA hardware by CI.
 
-### Extended operator and CUDA peak profiling (0.7.1)
+### Extended operator and CUDA peak profiling (0.7.1.1)
 
 ```python
 from deepforge.profiler import profile_operators, profile_cuda_peak
