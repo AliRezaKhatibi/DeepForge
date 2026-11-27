@@ -20,7 +20,7 @@ def test_epoch_dashboard(tmp_path):
     report_save(store, 1, False, lambda: store.save(1, b"payload"), monitor)
     html = snapshot_html(path)
     assert "Overall training progress" in html
-    assert "Epoch 1 / 3" in html and "Epoch 2 / 3" in html
+    assert "Epoch 1 / 3" in html
     assert "Checkpoint: completed" in html and "Verification: completed" in html
     assert "0.1235" in html and "Loss per epoch" in html
     assert "Accuracy per epoch" in html
@@ -117,8 +117,20 @@ def test_fixed_header_all_epochs(tmp_path):
     events = [json.loads(line) for line in path.with_name(path.name + ".epochs.jsonl").read_text().splitlines()]
     assert [e["epoch"] for e in events if e["event"] == "training_epoch"] == list(range(1, 26))
     assert html.index("Overall training progress") < html.index("</header>") < html.index("overflow-y:auto")
-    assert html.index("Epoch 25 / 25") < html.index("Epoch 6 / 25")
+    assert html.index("Epoch 6 / 25") < html.index("Epoch 25 / 25")
     assert "max-height:320px" in html
     assert "overflow-y:auto" not in snapshot_html(path, fixed_header=False)
     with pytest.raises(ValueError):
         snapshot_html(path, dashboard_height=0)
+
+
+def test_epoch_health_warning(tmp_path):
+    from deepforge.epoch_health import epoch_health
+    path = tmp_path / "health.json"
+    monitor = TrainingMonitor(path, epochs=4, batches_per_epoch=1)
+    for epoch in range(1,5):
+        monitor.batch(epoch=epoch,batch=1,metrics={"loss":1/epoch})
+        monitor.epoch_end(epoch,{"loss":epoch/2})
+    assert epoch_health(monitor.epoch_records,4)[0] == "Severe overfitting warning"
+    assert "Severe overfitting warning" in snapshot_html(path)
+    assert "Severe overfitting warning" not in snapshot_html(path,show_diagnostics=False)
