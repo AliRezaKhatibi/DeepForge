@@ -43,3 +43,26 @@ def test_stage_skip_and_failure(tmp_path):
     assert monitor.snapshot()["epoch_records"]["1"]["stages"]["checkpoint"]["status"] == "failed"
     with pytest.raises(ValueError):
         monitor.record_stage(1, "validation", "running", completed=3, total=2)
+
+
+def test_long_run_card_window(tmp_path):
+    path = tmp_path / "long.json"
+    monitor = TrainingMonitor(path, epochs=510, batches_per_epoch=1, history_limit=10, publish_interval=3600)
+    for epoch in range(1, 511):
+        monitor.batch(epoch=epoch, batch=1, metrics={"loss": 1 / epoch})
+    monitor.finish()
+    html = snapshot_html(path, max_epochs=12)
+    assert html.count("<article ") == 12
+    assert "Epoch 510 / 510" in html
+    assert "Epoch 1 / 510" not in html
+    assert len(monitor.snapshot()["history"]) == 10
+    assert len(monitor.snapshot()["epoch_records"]) == 510
+    assert len(html) < 150000
+
+def test_old_snapshot_compatibility(tmp_path):
+    path = tmp_path / "legacy.json"
+    monitor = TrainingMonitor(path, epochs=2, batches_per_epoch=2)
+    data = monitor.snapshot()
+    data.pop("epoch_records")
+    path.write_text(json.dumps(data), encoding="utf-8")
+    assert "Overall training progress" in snapshot_html(path)
