@@ -85,8 +85,8 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
                      f'<details{" open" if epoch == current else ""}><summary>Details</summary><div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</details></article>')
     warning = ''
     health, color = epoch_health(records, current, patience=alert_patience, threshold=alert_threshold)
-    if show_diagnostics and health in ('Severe overfitting warning','Possible overfitting','Watch'):
-        warning = f'<div role="alert" style="border:2px solid {color};padding:12px;margin:8px 0">{health}: training loss fell while validation loss rose. Review validation and regularization.</div>'
+    if show_diagnostics and health in ('Severe overfitting warning','Possible overfitting','Watch','Nonfinite metric'):
+        warning = f'<div role="alert" style="border:2px solid {color};padding:12px;margin:8px 0">{health}. Review recorded metrics before continuing.</div>'
     archive = ""
     if show_history and first > 1:
         archive = f'<p>{first-1} earlier epochs retained in the training log and snapshot.</p>'
@@ -98,7 +98,7 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
             if isinstance(value, (int,float)) and math.isfinite(value):
                 meters.append(f"<div>{label}: {value:.1f}%{bar(max(0,min(100,value)))}</div>")
         hardware = "".join(meters)
-    overall = f"<strong>Overall training progress</strong> {progress:.1f}%{bar(progress)}" if show_overall else ""
+    overall = f"<strong>Overall training progress</strong> {progress:.1f}%{bar(progress, '#E0C58F')}" if show_overall else ""
     charts = []
     if show_charts:
         for metric in ("loss", "accuracy"):
