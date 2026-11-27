@@ -80,6 +80,7 @@ class Studio:
         top = tk.Frame(self.main,bg=BG); top.pack(fill='x')
         self.menu_btn=ttk.Button(top,text='Menu',width=6,command=self.toggle_sidebar); self.menu_btn.pack(side='left',padx=(0,10))
         self.breadcrumb = self.label(top,'WORKSPACE  /  OVERVIEW',9,GOLD,BG,True); self.breadcrumb.pack(side='left')
+        ttk.Button(top,text='Checkpoint',command=self.checkpoint_settings).pack(side='right',padx=4)
         ttk.Button(top,text='About',width=7,command=self.help).pack(side='right')
         self.top_status=self.label(top,'LOCAL  /  READ-ONLY INPUTS',9,ACCENT,BG,True); self.top_status.pack(side='right',padx=12)
         top.bind('<Configure>',lambda e:self.top_status.configure(text='LOCAL' if e.width<850 else 'LOCAL  /  READ-ONLY INPUTS'))
@@ -147,6 +148,42 @@ class Studio:
         root.bind_all('<MouseWheel>',self.scroll_wheel)
         root.bind_all('<Button-4>',self.scroll_wheel); root.bind_all('<Button-5>',self.scroll_wheel)
         self.select('Home'); root.after(80,self.poll)
+
+
+    def checkpoint_settings(self):
+        from .checkpoint import CheckpointPolicy, atomic_json
+        from dataclasses import asdict
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Checkpoint configuration")
+        values = {key: tk.StringVar(value=value) for key, value in {
+            "root": "checkpoints", "run_id": "run_001", "keep_last": "2",
+            "save_every_epochs": "1", "max_bytes": ""
+        }.items()}
+        enabled = tk.BooleanVar(value=True)
+        for key, var in values.items():
+            ttk.Label(dialog, text=key).pack(anchor="w", padx=12)
+            ttk.Entry(dialog, textvariable=var, width=48).pack(padx=12, pady=3)
+        ttk.Checkbutton(dialog, text="Enable checkpointing", variable=enabled).pack()
+        def save():
+            try:
+                policy = CheckpointPolicy(enabled=enabled.get(),
+                    keep_last=int(values["keep_last"].get()),
+                    save_every_epochs=int(values["save_every_epochs"].get()),
+                    max_bytes=int(values["max_bytes"].get()) if values["max_bytes"].get() else None)
+                import re
+                run_id = values["run_id"].get()
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", run_id):
+                    raise ValueError("invalid run identifier")
+                if not values["root"].get().strip():
+                    raise ValueError("storage root is required")
+                path = filedialog.asksaveasfilename(parent=dialog, defaultextension=".json")
+                if path:
+                    atomic_json(Path(path), {"root": values["root"].get(),
+                        "run_id": run_id, "policy": asdict(policy)})
+                    dialog.destroy()
+            except (ValueError, OSError) as exc:
+                messagebox.showerror("Checkpoint", str(exc), parent=dialog)
+        ttk.Button(dialog, text="Export configuration", command=save).pack(pady=12)
 
     def configure_style(self):
         s=self.style
