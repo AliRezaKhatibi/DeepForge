@@ -148,9 +148,11 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0, audio=False):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0, audio=False, widget_scroll=False):
         from .notebook_setup import AudioAlerts
         self.audio = AudioAlerts(audio)
+        self.widget_scroll = widget_scroll
+        self._widget = None
         if not math.isfinite(alert_threshold) or alert_threshold <= 0 or type(alert_patience) is not int or alert_patience < 1:
             raise ValueError('Invalid alert settings')
         if not math.isfinite(interval) or interval < 0:
@@ -176,8 +178,24 @@ class NotebookMonitor:
         now = time.monotonic()
         if not force and self._last is not None and now - self._last < self.interval:
             return False
-        output = HTML(snapshot_html(self.path, max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme, **self.sections))
-        if self._handle is None:
+        options = dict(self.sections)
+        if self.widget_scroll:
+            options['fixed_header'] = False
+        markup = snapshot_html(self.path, max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme, **options)
+        output = HTML(markup)
+        if self.widget_scroll:
+            import ipywidgets as w
+            header, body = markup.split('</header>', 1)
+            if self._widget is None:
+                self._header_widget = w.HTML(value=header+'</header></section>')
+                self._body_widget = w.HTML(value='<section>'+body)
+                self._scroll_widget = w.VBox([self._body_widget], layout=w.Layout(max_height=f"{self.sections['dashboard_height']}px", overflow='auto'))
+                self._widget = w.VBox([self._header_widget,self._scroll_widget])
+                display(self._widget)
+            else:
+                self._header_widget.value = header+'</header></section>'
+                self._body_widget.value = '<section>'+body
+        elif self._handle is None:
             self._handle = display(output, display_id=True)
         else:
             self._handle.update(output)
