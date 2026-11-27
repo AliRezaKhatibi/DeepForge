@@ -68,6 +68,9 @@ def main(argv=None):
     profile.add_argument("--batch", type=int, default=1)
     profile.add_argument("--warmup", type=int, default=2)
     profile.add_argument("--repeats", type=int, default=5)
+    checkpoint = commands.add_parser("checkpoint", help="Inspect verified checkpoints")
+    checkpoint.add_argument("root")
+    checkpoint.add_argument("run_id")
     args = parser.parse_args(argv)
     try:
         if args.command in {"dataset", "leakage"}:
@@ -93,6 +96,10 @@ def main(argv=None):
             from .profiler import profile_mlp
             report = profile_mlp(args.inputs, args.hidden, args.outputs, batch=args.batch,
                                  warmup=args.warmup, repeats=args.repeats)
+        elif args.command == "checkpoint":
+            from .checkpoint import CheckpointStore
+            store = CheckpointStore(args.root, args.run_id)
+            report = {"run_id": args.run_id, "verified": [item[3] for item in store._records()]}
         elif args.command == "manifest":
             report = reproducibility_manifest(args.file)
         else:
