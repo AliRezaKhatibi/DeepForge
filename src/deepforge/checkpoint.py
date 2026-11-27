@@ -121,7 +121,12 @@ class CheckpointStore:
                 target.unlink()  # unpublished payload from interrupted save
             if target.exists() or manifest.exists():
                 raise FileExistsError("epoch already exists")
-            used = sum(p.stat().st_size for p in self.root.glob("epoch-*.bin"))
+            # Reclaim interrupted, unpublished payloads under the writer lock.
+            for orphan in self.root.glob("epoch-*.bin"):
+                marker = orphan.with_suffix(".json")
+                if orphan.is_file() and not orphan.is_symlink() and not marker.exists() and not marker.is_symlink():
+                    orphan.unlink()
+            used = sum(p.stat().st_size for p in self.root.glob("epoch-*.bin") if not p.is_symlink())
             require_capacity(self.root, len(payload), self.policy, used)
             fd, name = tempfile.mkstemp(prefix=".pending-", dir=self.root)
             try:
