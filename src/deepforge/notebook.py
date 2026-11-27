@@ -153,7 +153,6 @@ class NotebookMonitor:
         self.audio = AudioAlerts(audio)
         if not math.isfinite(alert_threshold) or alert_threshold <= 0 or type(alert_patience) is not int or alert_patience < 1:
             raise ValueError('Invalid alert settings')
-        import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
         if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
