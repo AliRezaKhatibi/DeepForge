@@ -7,13 +7,19 @@ from .checkpoint import CheckpointStore
 
 class TorchCheckpoint:
     def __init__(self, store: CheckpointStore, model, optimizer, *,
-                 scheduler=None, scaler=None, sampler=None):
+                 scheduler=None, scaler=None, sampler=None, monitor=None, refresh=None):
+        self.monitor = monitor
+        self.refresh = refresh
         self.store = store
         self.model = model
         self.optimizer = optimizer
         self.components = {"scheduler": scheduler, "scaler": scaler, "sampler": sampler}
 
     def save_epoch(self, epoch, *, global_step, metadata, best=False):
+        from .checkpoint_reporting import report_save
+        return report_save(self.store, epoch, best, lambda: self._save(epoch, global_step, metadata, best), self.monitor, self.refresh)
+
+    def _save(self, epoch, global_step, metadata, best):
         import torch
         state = {
             "schema": 1, "epoch": epoch, "global_step": global_step,
