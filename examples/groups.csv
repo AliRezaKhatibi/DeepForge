@@ -1,0 +1,6 @@
+group_id,split
+synthetic-a,train
+synthetic-a,val
+synthetic-b,train
+synthetic-c,test
+synthetic-d,val

@@ -1,0 +1,25 @@
+# Changelog
+
+## 0.3.0 - Jade Edition release candidate
+
+- Redesigned Studio with a cream canvas, deep jade navigation and restrained gold accents.
+- Integrated a transparent XVARNA logo, application icon and branded About panel crediting Alireza Khatibi.
+- Added searchable, scrollable navigation, collapsible sidebar, remembered workspace inputs and keyboard shortcuts.
+- Added searchable findings, row copying, plot hover inspection and interactive binary threshold previews.
+- HTML export now reflects the selected probability chart.
+- Refreshed actual application screenshots and expanded regression tests. All 12 existing tools and CLI commands are retained.
+
+## 0.2.0 - Studio Professional release candidate
+
+- Redesigned the desktop dashboard, navigation, configuration panels, report tabs and charts.
+- Added six new workspaces: image integrity and perceptual matching, group leakage, YOLO label audit, experiment comparison, binary score evaluation and reproducibility manifests.
+- Added ROC, precision-recall and calibration visualization; ranked run comparisons and specific findings previews.
+- Added self-contained HTML reports, embedded SVG charts, and a bounded in-memory session history.
+- Added synthetic demo inputs for nine workspaces and Windows setup/launch scripts.
+- Preserved the existing CLI and Python API while extending test and CI coverage.
+- No cloud backend, telemetry, checkpoint deserialization or automatic dataset modification.
+
+## 0.1.0
+
+- Initial six research utilities with CLI, Python API and Tkinter interface.
+- JSON export, basic charts, synthetic examples, tests and MIT license.

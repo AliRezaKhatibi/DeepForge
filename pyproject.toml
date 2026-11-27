@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepforge-research-toolkit"
+version = "0.3.0"
+description = "Local-first deep learning research studio and dataset validation toolkit"
+authors = [{name = "Alireza Khatibi"}]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["deep-learning", "dataset", "reproducibility", "pytorch"]
+classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "Pillow>=10"]
+images = ["Pillow>=10"]
+torch = ["torch"]
+
+[project.scripts]
+deepforge = "deepforge.cli:main"
+deepforge-studio = "deepforge.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+deepforge = ["assets/*.png", "samples/*.csv", "samples/runs/*.csv", "samples/dataset/*/*/*.png", "samples/yolo/images/*/*.png", "samples/yolo/labels/*/*.txt"]
