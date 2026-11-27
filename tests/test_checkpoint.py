@@ -48,3 +48,20 @@ def test_disabled_and_interval(tmp_path):
 def test_invalid_run_id(tmp_path):
     with pytest.raises(ValueError):
         CheckpointStore(tmp_path, "../escape")
+
+
+def test_abandoned_lock_recovery(tmp_path):
+    store = CheckpointStore(tmp_path, "run")
+    store.save(1, b"safe")
+    (store.root / ".writer.lock").touch()
+    with pytest.raises(ValueError):
+        store.recover_abandoned_lock()
+    store.recover_abandoned_lock(confirmed_no_writer=True)
+    assert store.save(2, b"resumed").exists()
+
+
+def test_unpublished_payload_recovery(tmp_path):
+    store = CheckpointStore(tmp_path, "run")
+    (store.root / "epoch-1.bin").write_bytes(b"incomplete")
+    assert store.latest() is None
+    assert store.save(1, b"complete").read_bytes() == b"complete"
