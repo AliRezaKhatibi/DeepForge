@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.6.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.7.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.6.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.7.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -54,7 +54,7 @@ The Windows launch scripts have been inspected but not run on Windows in the rel
 | Compare Runs | Rank validation histories and identify rejected CSV files | `compare` |
 | Classification | Accuracy, macro/weighted precision, recall, F1 and confusion matrix | `metrics` |
 | Binary Scores | ROC-AUC, average precision, threshold metrics, Brier score and ECE | `scores` |
-| Model Inspector | Parameters and logical tensor sizes for a configurable MLP | Python API |
+| Model Inspector | Parameters, executed layers, shapes, partial MACs/FLOPs and latency for a configurable MLP | `profile-mlp` |
 | Runtime | Python, PyTorch and optional CUDA information | `env` |
 | Reproducibility | Dependency versions and optional input-file SHA-256 | `manifest` |
 
@@ -209,6 +209,7 @@ print(report['roc_auc'])
 | audit | `audit_images`, `audit_groups`, `audit_yolo` | Image, group and annotation audits |
 | advanced | `read_binary_scores`, `compare_runs` | Probability evaluation and run comparison |
 | models | `inspect_model` | Model parameter and buffer inspection |
+| profiler | `profile_model`, `profile_mlp` | Executed layer trace, partial MACs/FLOPs, logical bytes and forward latency |
 | automation | `run_checks`, `require_pass`, `save_report` | Composable quality gates |
 | training | `TrainingGuard`, `model_check`, `gradient_check` | Pre-update training health checks |
 | monitor | `TrainingMonitor` | Batch progress, ETA, metrics and output files |
@@ -307,6 +308,29 @@ The following image shows the actual notebook renderer output opened in a browse
 ### Reproducing live monitor screenshots
 
 The [Live monitor gallery workflow](https://github.com/AliRezaKhatibi/DeepForge/actions/workflows/live-gallery.yml) runs the actual desktop viewer under Xvfb and captures its window using synthetic metrics. Download the `deepforge-live-gallery` artifact from a successful run. The HTML file is the actual notebook renderer output; a browser capture illustrates that HTML, not a hosted Jupyter session. These are demonstrations, not trained-model benchmarks.
+
+## Model architecture profiler (0.7)
+
+```bash
+deepforge profile-mlp --inputs 16 --hidden 32 --outputs 3 --batch 8
+```
+
+```python
+import torch
+from deepforge.profiler import profile_model
+
+model = torch.nn.Sequential(torch.nn.Linear(16, 32),
+                            torch.nn.ReLU(), torch.nn.Linear(32, 3))
+report = profile_model(model, torch.zeros(8, 16), warmup=2, repeats=5)
+print(report["estimated_macs"], report["estimated_flops_2x_macs"])
+print(report["calls"])
+```
+
+The Model workspace now profiles the built-in MLP, with executed call details in Findings and JSON/HTML reports. Arbitrary trusted, already initialized models are supported through Python, including keyword and nested inputs. The example `examples/profile_architecture.py` exports a self-contained HTML report.
+
+**Counting convention:** standard Linear and Conv1d/2d/3d leaf-module calls only, including groups, output dimensions, repeated calls and batch size. One multiply-accumulate is counted as two FLOPs. Bias, activation, normalization, pooling, attention and functional operations are not counted. Unsupported leaf types are reported, but functional operations can remain invisible. This is a partial estimate, not a complete architecture FLOP count or a substitute for a paper's reporting convention. Registered modules, registered leaf modules, and executed leaf calls are distinct; shared parameters are deduplicated in the global inventory, not necessarily in per-module rows.
+
+Latency measures a complete uninstrumented forward after warmup, on CPU or synchronized CUDA devices, with median and nearest-rank p95 in milliseconds. Set repeats=0 to disable timing. Measurements depend on batch size, hardware and load. The logical output byte sum is not peak activation memory; CUDA allocator before/after values are process-wide, not model-specific peak VRAM. Model evaluation flags and hooks are restored, but arbitrary custom forwards can still mutate state or consume RNG; profile trusted code only, never concurrently on a training model. GPU timing is not yet verified on real CUDA hardware by CI.
 
 ## Training analytics and persistent events (0.6)
 

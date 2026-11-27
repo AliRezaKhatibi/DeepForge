@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepforge-research-toolkit"
-version = "0.6.0"
+version = "0.7.0"
 description = "Local-first deep learning research studio and dataset validation toolkit"
 authors = [{name = "Alireza Khatibi"}]
 readme = "README.md"

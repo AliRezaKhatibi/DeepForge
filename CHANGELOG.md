@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 - Architecture profiler candidate
+
+- Added executed leaf-module traces, tensor metadata, parameter inventories and partial Linear/Conv MAC/FLOP estimates.
+- Added warmup and repeated CPU/CUDA forward timing, logical output bytes and CUDA allocator observations.
+- Extended the desktop Model inspector, CLI, report findings and examples without removing previous workspaces.
+- Added analytical and cleanup regression tests; real CUDA validation remains outstanding.
+
 ## 0.6.0 - Training analytics candidate
 
 - Added configurable loss-trend signals, gradient threshold observations and per-batch class counts.

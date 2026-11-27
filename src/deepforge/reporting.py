@@ -31,7 +31,7 @@ def finding_rows(report, limit=200):
     """Show concrete audit findings before summary fields, with a documented cap."""
     rows = []
     fields = ('duplicates', 'candidate_pairs', 'errors', 'overlaps', 'missing_labels',
-              'orphan_labels', 'ambiguous_image_stems', 'issues', 'ranking', 'rejected')
+              'orphan_labels', 'ambiguous_image_stems', 'issues', 'ranking', 'rejected', 'calls')
     for key in fields:
         value = report.get(key)
         if not isinstance(value, list):
