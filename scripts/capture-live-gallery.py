@@ -40,23 +40,35 @@ def capture(output):
         monitor.artifact(results)
         monitor.record_resources(sample_resources())
         # The data above are synthetic metrics, not a benchmark or trained model.
-        (output / "live-notebook.html").write_text(snapshot_html(monitor.path), encoding="utf-8")
+        (output / "live-notebook.html").write_text("<!doctype html><html><head><meta charset=\"utf-8\"><title>DeepForge notebook snapshot</title></head><body style=\"font-family: sans-serif;max-width: 900px;margin: 24px auto;\">" + snapshot_html(monitor.path) + "</body></html>", encoding="utf-8")
         real_mainloop = tk.Tk.mainloop
 
         def take(window, *args, **kwargs):
-            def save():
+            def screenshot(name):
+                window.update_idletasks()
+                subprocess.run(["import", "-window", str(window.winfo_id()),
+                                str(output / name)], check=True)
+            def second():
                 try:
-                    window.update_idletasks()
-                    subprocess.run(["import", "-window", str(window.winfo_id()),
-                                    str(output / "live-training.png")], check=True)
+                    screenshot("live-box-loss.png")
                 finally:
                     window.destroy()
-            window.after(1500, save)
+            def first():
+                try:
+                    screenshot("live-training.png")
+                    selector = next(w for w in window.winfo_children()
+                                    if w.winfo_class() == "TCombobox")
+                    selector.set("box_loss")
+                    window.after(1200, second)
+                except Exception:
+                    window.destroy()
+                    raise
+            window.after(1500, first)
             return real_mainloop(window, *args, **kwargs)
 
         with patch.object(tk.Tk, "mainloop", take):
             main([str(monitor.path)])
-        if not (output / "live-training.png").is_file():
+        if not all((output / name).is_file() for name in ("live-training.png", "live-box-loss.png")):
             raise RuntimeError("Screenshot capture failed")
         monitor.finish()
 

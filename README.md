@@ -292,7 +292,7 @@ In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and
 
 ### Reproducing live monitor screenshots
 
-The [Live monitor gallery workflow](https://github.com/AliRezaKhatibi/DeepForge/actions/workflows/live-gallery.yml) runs the actual desktop viewer under Xvfb and captures its window using synthetic metrics. Download the `deepforge-live-gallery` artifact from a successful run. The HTML file is the actual notebook renderer output. These are demonstrations, not trained-model benchmarks.
+The [Live monitor gallery workflow](https://github.com/AliRezaKhatibi/DeepForge/actions/workflows/live-gallery.yml) runs the actual desktop viewer under Xvfb and captures its window using synthetic metrics. Download the `deepforge-live-gallery` artifact from a successful run. The HTML file is the actual notebook renderer output; a browser capture illustrates that HTML, not a hosted Jupyter session. These are demonstrations, not trained-model benchmarks.
 
 ## Tests and release verification
 

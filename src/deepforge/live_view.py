@@ -64,8 +64,8 @@ def main(argv=None):
                     chart.create_oval(x-4,y-4,x+4,y+4,fill=gold,outline=jade)
                 chart.create_text(w-15, 15, anchor="ne", text=f"{pts[-1][1]:.5g}", fill=jade)
             validation = data.get("epoch_history", [])
-            extra = "\\nValidation: " + str(validation[-1]["metrics"]) if validation else ""
-            extra += "\\nResources: " + str(data["resources"]) if data.get("resources") else ""
+            extra = "\nValidation: " + "  |  ".join(f"{k}: {v:.4g}" if isinstance(v, (int, float)) else f"{k}: {v}" for k, v in validation[-1]["metrics"].items()) if validation else ""
+            extra += "\nResources: " + "  |  ".join(f"{k}: {v:.4g}" if isinstance(v, (int, float)) else f"{k}: {v}" for k, v in data["resources"].items()) if data.get("resources") else ""
             artifacts.set("Output files: " + (" | ".join(f'{a["name"]} ({a["bytes"] if a["exists"] else "missing"} bytes)' for a in data["artifacts"][-5:]) or "None registered") + extra)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             status.set(f"Snapshot unavailable: {type(exc).__name__}")
