@@ -6,34 +6,60 @@
   <p>Developed by XVARNA &amp; Bushehr Machine Vision.</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.7.1.1.2-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.7.1.1.3-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.7.1.1.2 is a release candidate for research and development, not a clinically validated product or a certified production service. It is published on PyPI.
+DeepForge Studio is an early-stage open-source project for research and development, not a clinically validated product or a certified production service. Version 0.7.1.1.3 is prepared for release; the previous 0.7.1.1.2 distribution remains on PyPI until publication is approved.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
 ## Install and launch
 
-### Advanced training dashboard (development preview)
+### Advanced desktop training monitor (0.7.1.1.3)
 
-The advanced notebook monitor provides six views (Training, Metrics, Hardware,
-Model, Dataset and Reports), recorded metric cards, epoch charts and resource
-meters in a responsive jade layout. `build_training_session(...)` selects this
-view by default; set `advanced_dashboard=False` in the saved setup JSON to use
-the previous renderer. Direct `NotebookMonitor(...)` calls retain the original
-renderer unless `advanced=True` is supplied. Missing readings remain explicitly
-unreported. Metric units are those supplied by the training loop.
+The native desktop monitor is an **optional independent window** for local scripts
+and notebooks in VS Code, PyCharm or a terminal. It does not replace the existing
+Colab/Jupyter inline monitor or the legacy `deepforge-live` viewer. The six English
+views (Training, Metrics, Hardware, Model, Dataset, Reports) show actual recorded
+data, not estimates of unreported measurements. Validation cards identify their
+last recorded epoch. The default jade palette is based on the approved reference;
+the transparent SVG/PNG/ICO symbol is a vector reconstruction, not an original
+vector master.
 
-Call `session.controls()` for cooperative stop, cancel and manual checkpoint
-requests. Manual requests are processed only at a completed, validated epoch
-boundary and use a separate checkpoint store. Widget callback delivery during
-a blocking training cell depends on the notebook frontend; it is not a guarantee
-of asynchronous controls. The new vector logo is a reconstruction of the supplied
-design reference, not a pixel-identical original vector master.
+In a local VS Code notebook, use the established `build_training_session(...)` and
+`NotebookMonitor` workflow exactly as before. To additionally open the advanced
+native window, run this after building the session:
+
+```python
+desktop = session.open_desktop()
+```
+
+Alternatively, pass `desktop=True` to `build_training_session(...)`. The window
+uses the same Python interpreter and a separate local process; training keeps
+running if it is closed. A local graphical display and Tkinter are required
+(`python -m tkinter` checks availability). Do not use the desktop option in hosted
+Colab, Kaggle or another headless runtime. An existing local snapshot can be
+viewed read-only without a session:
+
+```bash
+deepforge-monitor /path/to/live.json
+```
+
+For stop/cancel/save, the training loop must call `session.epoch_boundary(...)`
+after validation and scheduler updates, as in the existing session examples.
+The desktop control channel remains responsive while the caller is training;
+requests are acknowledged at safe epoch boundaries. Manual saves use a separate
+verified checkpoint store, even when periodic saving is disabled. The optional
+resume button requires the caller to opt in with
+`session.open_desktop(allow_resume=True)` and call
+`session.wait_for_resume_request()` after pausing, then rebuild a matching session,
+call `restore()` and restart the caller-owned loop at the next epoch. It cannot
+execute arbitrary user training code. Without that opt-in, the UI explains how to
+resume using the established recovery API. All existing notebook controls remain
+unchanged. See [the local example](examples/desktop_training.py) for a complete workflow.
 
 Python 3.10 or later is required. The core toolkit uses only the standard library. Pillow enables image decoding and similarity analysis; PyTorch is optional for model inspection. Tkinter is required only for the desktop application.
 

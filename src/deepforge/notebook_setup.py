@@ -54,7 +54,8 @@ class AudioAlerts:
 
 
 def build_training_session(config_path, *, run_id, epochs, batches_per_epoch, model, optimizer,
-                           experiment_metadata, scheduler=None, scaler=None, sampler=None):
+                           experiment_metadata, scheduler=None, scaler=None, sampler=None,
+                           desktop=False):
     """Apply saved setup to a PyTorch session; caller owns training loop."""
     import json
     from pathlib import Path
@@ -74,19 +75,14 @@ def build_training_session(config_path, *, run_id, epochs, batches_per_epoch, mo
     metadata = {"run_id": run_id, "model": type(model).__name__,
                 "dataset": experiment_metadata,
                 "readiness": {"Configuration": True, "Checkpoint settings": True}}
-    try:
-        params = list(model.parameters())
-        metadata.update(parameters=sum(p.numel() for p in params),
-                        trainable_parameters=sum(p.numel() for p in params if p.requires_grad),
-                        device=str(params[0].device) if params else None)
-    except (AttributeError, ValueError, RuntimeError):
-        pass  # Lazy or custom model: metadata is optional, never block training.
     view = NotebookMonitor(monitor.path, widget_scroll=config.get("widget_scroll",False),
-        advanced=config.get("advanced_dashboard",True), metadata=metadata,
         gradient_threshold=config.get("gradient_threshold",100.0), **{k:config[k] for k in keys})
     checkpoint = TorchCheckpoint(store, model, optimizer, scheduler=scheduler,
         scaler=scaler, sampler=sampler, monitor=monitor,
         refresh=lambda: view.refresh(force=True))
     session = TrainingSession(monitor, checkpoint,
         {"setup":config,"experiment":experiment_metadata})
+    session.desktop_metadata = metadata
+    if desktop:
+        session.open_desktop()
     return monitor, view, checkpoint, session
