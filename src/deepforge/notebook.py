@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 
 
-def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
+def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25):
     if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
         raise ValueError("max_epochs must be None or an integer >= 2")
     if type(dashboard_height) is not int or dashboard_height < 120:
@@ -19,6 +19,7 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
         raise ValueError("Unsupported snapshot schema")
     esc = lambda value: html.escape(str(value), quote=True)
     progress = min(100, max(0, float(data["progress"]) * 100))
+    from .epoch_health import epoch_health
     rows = []
     for label, value in (
         ("Status", data["status"]), ("Epoch", f'{data["epoch"]}/{data["epochs"]}'),
@@ -27,7 +28,8 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
         ("ETA (s)", None if data["eta_seconds"] is None else round(data["eta_seconds"], 1)),
         ("Batches/s", round(data["batches_per_second"], 2)),
     ):
-        rows.append((label, value))
+        if overall_fields is None or label in overall_fields:
+            rows.append((label, value))
     if show_metrics:
         rows.extend(data["metrics"].items())
     if show_metrics and data.get("epoch_history"):
@@ -47,10 +49,10 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
     def fmt(value):
         return f"{value:.4f}" if isinstance(value, float) else esc(value)
 
-    def bar(percent):
+    def bar(percent, color='#24765c'):
         return (f'<div role="progressbar" aria-valuenow="{percent:.1f}" aria-valuemin="0" aria-valuemax="100" '
                 'style="background:#dddcd3;border-radius:8px;height:9px;overflow:hidden">'
-                f'<div style="background:#24765c;width:{percent:.2f}%;height:9px"></div></div>')
+                f'<div style="background:{color};width:{percent:.2f}%;height:9px"></div></div>')
 
     records = data.get("epoch_records", {})
     current = max(1, data["epoch"])
@@ -65,6 +67,9 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
         metrics = record.get("training", data["metrics"] if epoch == current else {})
         if record.get("validation"):
             metrics = {**metrics, **{"val_" + k: v for k, v in record["validation"].items()}}
+        health, color = epoch_health(records, epoch, patience=alert_patience, threshold=alert_threshold) if percent == 100 and show_diagnostics else (state, '#305070' if done else '#808080')
+        if epoch_metrics is not None:
+            metrics = {k:v for k,v in metrics.items() if k in epoch_metrics}
         details = " · ".join(f"{esc(k)}: {fmt(v)}" for k, v in metrics.items())
         stages = []
         if show_stages:
@@ -74,10 +79,14 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
                 count, total = item.get("completed"), item.get("total")
                 meter = bar(100 * count / total) if total else (bar(100) if status == "completed" else "")
                 stages.append(f'<div style="margin-top:8px">{stage.title()}: {esc(status)}{meter}</div>')
-        cards.append(f'<article style="background:{panel};color:{fg};border:1px solid #dedbd0;border-radius:12px;padding:12px;margin-top:10px">'
-                     f'<strong>Epoch {epoch} / {data["epochs"]}</strong> · {state}{bar(percent)}'
+        cards.append(f'<article style="background:{panel};color:{fg};border:1px solid {color};border-radius:12px;padding:12px;margin-top:10px">'
+                     f'<strong>Epoch {epoch} / {data["epochs"]}</strong> · {health}{bar(percent, color)}'
                      f'<div>{done}/{data["batches_per_epoch"]} batches · {percent:.1f}%</div>'
                      f'<details{" open" if epoch == current else ""}><summary>Details</summary><div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</details></article>')
+    warning = ''
+    health, color = epoch_health(records, current, patience=alert_patience, threshold=alert_threshold)
+    if show_diagnostics and health in ('Severe overfitting warning','Possible overfitting','Watch'):
+        warning = f'<div role="alert" style="border:2px solid {color};padding:12px;margin:8px 0">{health}: training loss fell while validation loss rose. Review validation and regularization.</div>'
     archive = ""
     if show_history and first > 1:
         archive = f'<p>{first-1} earlier epochs retained in the training log and snapshot.</p>'
@@ -125,7 +134,7 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
     return (f'<section style="background:{bg};color:{fg};padding:16px;border-radius:12px">'
             f'<header style="background:{header_bg};color:{header_fg};padding:12px;border-radius:12px"><h2 style="color:{header_fg};margin:0 0 12px">DeepForge · XVARNA</h2>'
             f'{overall}<div>{summary}</div></header><div style="{scroll_style}" role="region" aria-label="Training details" tabindex="0">'
-            f'{"".join(cards)}{archive}{hardware}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</div></section>')
+            f'{warning}{archive}{"".join(cards)}{hardware}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</div></section>')
 
 
 def display_snapshot(path, *, display_id=None):
@@ -140,7 +149,7 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25):
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
@@ -153,7 +162,7 @@ class NotebookMonitor:
         self.show_charts = show_charts
         self.show_resources = show_resources
         self.theme = theme
-        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall, fixed_header=fixed_header, dashboard_height=dashboard_height)
+        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall, fixed_header=fixed_header, dashboard_height=dashboard_height, epoch_metrics=epoch_metrics, overall_fields=overall_fields, alert_patience=alert_patience, alert_threshold=alert_threshold)
         self.path = Path(path)
         self.interval = interval
         self._last = None
