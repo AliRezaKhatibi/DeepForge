@@ -55,6 +55,7 @@ def test_long_run_card_window(tmp_path):
     assert html.count("<article ") == 12
     assert "Epoch 510 / 510" in html
     assert "Epoch 1 / 510" not in html
+    assert "Earlier epochs (498)" in html
     assert len(monitor.snapshot()["history"]) == 10
     assert len(monitor.snapshot()["epoch_records"]) == 510
     assert len(html) < 150000
@@ -66,3 +67,37 @@ def test_old_snapshot_compatibility(tmp_path):
     data.pop("epoch_records")
     path.write_text(json.dumps(data), encoding="utf-8")
     assert "Overall training progress" in snapshot_html(path)
+
+
+def test_resource_sampling_and_controls(tmp_path, monkeypatch):
+    import deepforge.resources as resources
+    monkeypatch.setattr(resources, "sample_resources", lambda path: {"cpu_percent": 25, "gpu_utilization_percent": 75})
+    path = tmp_path / "live.json"
+    monitor = TrainingMonitor(path, epochs=1, batches_per_epoch=1, resource_interval=1)
+    monitor.batch(epoch=1, batch=1)
+    assert "GPU compute: 75.0%" in snapshot_html(path)
+    assert "GPU compute" not in snapshot_html(path, show_resources=False)
+    assert "<article " not in snapshot_html(path, show_epochs=False)
+    assert "Overall training progress" not in snapshot_html(path, show_overall=False)
+
+def test_checkpoint_bytes(tmp_path):
+    store = CheckpointStore(tmp_path, "bytes")
+    counts = []
+    payload = b"x" * (5 * 1024 * 1024)
+    path = store.save(1, payload, progress=lambda done, total: counts.append((done,total)))
+    assert counts == [(4 * 1024 * 1024, len(payload)), (len(payload), len(payload))]
+    assert path.read_bytes() == payload
+
+def test_long_run_python_allocation(tmp_path):
+    import tracemalloc
+    path = tmp_path / "memory.json"
+    tracemalloc.start()
+    try:
+        monitor = TrainingMonitor(path, epochs=510, batches_per_epoch=1, history_limit=10)
+        for epoch in range(1, 511):
+            monitor.batch(epoch=epoch, batch=1, metrics={"loss": 1/epoch})
+        snapshot_html(path)
+        _, peak = tracemalloc.get_traced_memory()
+        assert peak < 32 * 1024 * 1024
+    finally:
+        tracemalloc.stop()
