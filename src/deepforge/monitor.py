@@ -17,7 +17,7 @@ def _count(value, name, minimum=0):
 class TrainingMonitor:
     """Single writer per snapshot path. Record completed batches, not optimizer steps."""
     def __init__(self, path, *, epochs, batches_per_epoch, history_limit=500,
-                 publish_interval=1.0, archive=None, diagnostics=None):
+                 publish_interval=1.0, archive=None, diagnostics=None, resource_interval=None):
         self.path = Path(path)
         self.epochs = _count(epochs, "epochs", 1)
         self.batches = _count(batches_per_epoch, "batches_per_epoch", 1)
@@ -33,6 +33,10 @@ class TrainingMonitor:
         self.epoch_history = []
         self.epoch_records = {}
         self.resources = {}
+        if resource_interval is not None and (not math.isfinite(resource_interval) or resource_interval <= 0):
+            raise ValueError('resource_interval must be positive and finite')
+        self.resource_interval = resource_interval
+        self._last_resource = -math.inf
         self.artifacts = []
         self.status = "running"
         self.diagnostic_options = dict(diagnostics or {})
@@ -72,7 +76,11 @@ class TrainingMonitor:
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
         self._append({"event": "batch", "step": step, "samples": samples, "metrics": values, "labels": distribution})
-        self._publish(force=step == self.epochs * self.batches)
+        if self.resource_interval is not None and time.monotonic() - self._last_resource >= self.resource_interval:
+            from .resources import sample_resources
+            self.resources = sample_resources(self.path.parent)
+            self._last_resource = time.monotonic()
+        self._publish(force=batch == self.batches)
 
     def epoch_end(self, epoch, metrics):
         """Record finite scalar validation metrics after a completed epoch."""
