@@ -65,3 +65,22 @@ def test_unpublished_payload_recovery(tmp_path):
     (store.root / "epoch-1.bin").write_bytes(b"incomplete")
     assert store.latest() is None
     assert store.save(1, b"complete").read_bytes() == b"complete"
+
+
+def test_manifest_publication_failure_preserves_previous(tmp_path, monkeypatch):
+    import deepforge.checkpoint as checkpoint
+
+    store = CheckpointStore(tmp_path, "run")
+    store.save(1, b"previous")
+    original = checkpoint.atomic_json
+
+    def fail_publication(*args, **kwargs):
+        raise OSError("simulated storage disconnect")
+
+    monkeypatch.setattr(checkpoint, "atomic_json", fail_publication)
+    with pytest.raises(OSError, match="simulated storage disconnect"):
+        store.save(2, b"interrupted")
+    assert store.latest().read_bytes() == b"previous"
+    assert not (store.root / ".writer.lock").exists()
+    monkeypatch.setattr(checkpoint, "atomic_json", original)
+    assert store.save(2, b"recovered").read_bytes() == b"recovered"
