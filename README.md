@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.5.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.6.0-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.5.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.6.0 is a release candidate for research and development, not a clinically validated product or a certified production service. It is not yet published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -288,7 +288,7 @@ The adapter is tested against a synthetic callback protocol, not a real Ultralyt
 
 The live viewer provides a selector for available batch metric curves. Call `monitor.epoch_end(epoch, metrics)` after validation to retain epoch-level metrics separately. The Ultralytics adapter records the trainer's reported metrics through the fit-epoch callback. Opt in with `attach_monitor(model, "live.json", resources=True)`; install the resources extra for CPU/RAM measurements. CUDA allocated/reserved bytes describe the current PyTorch allocator, not total GPU utilization. Resource sampling occurs at epoch boundaries. 
 
-In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews and full batch history are not included.
+In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Opt-in image previews and batch event archives are described below.
 
 ### Live monitor gallery
 
@@ -307,6 +307,24 @@ The following image shows the actual notebook renderer output opened in a browse
 ### Reproducing live monitor screenshots
 
 The [Live monitor gallery workflow](https://github.com/AliRezaKhatibi/DeepForge/actions/workflows/live-gallery.yml) runs the actual desktop viewer under Xvfb and captures its window using synthetic metrics. Download the `deepforge-live-gallery` artifact from a successful run. The HTML file is the actual notebook renderer output; a browser capture illustrates that HTML, not a hosted Jupyter session. These are demonstrations, not trained-model benchmarks.
+
+## Training analytics and persistent events (0.6)
+
+```python
+from deepforge.monitor import TrainingMonitor
+
+monitor = TrainingMonitor("live.json", epochs=10, batches_per_epoch=20,
+                          archive="events.jsonl",
+                          diagnostics={"train_key": "train_loss", "val_key": "val_loss"})
+monitor.batch(epoch=1, batch=1, samples=3, metrics={"loss": 0.7},
+              labels=[0, 0, 1])
+# Optional: publish an explicitly selected, already annotated image:
+# monitor.record_preview("annotated_batch.png")
+```
+
+Call batch for every completed batch in sequence and epoch_end after each completed epoch with comparable scalar train/validation losses. Diagnostics flag possible overfitting or a loss plateau over the configured window, not causal diagnoses of overfitting or underfitting. Optional gradient thresholds require the caller to record gradient_norm and configure thresholds appropriate for the model. Class counts are label counts (objects for detection), not automatically inferred images or dataset-wide imbalance. The preview is opt-in, requires Pillow, stores a bounded PNG in the snapshot and notebook output, and never uploads data. Do not publish private image content or reports. The optional JSONL archive records all batch/epoch events, not images; it must be a new file, is single-writer, and does not implement checkpoint resume.
+
+Ultralytics callbacks record learning rates when exposed and ignore repeated final validation callbacks. The CI smoke job exercises a pinned YOLO release on CPU with generated images and labels; the job result is the verification record. Automatic extraction of YOLO batch tensors and sample counts, GPU utilization, resume, and architecture FLOPs are not implemented by this change. See the previous gallery for the established desktop UI; new diagnostics screenshots are not yet captured.
 
 ## Tests and release verification
 

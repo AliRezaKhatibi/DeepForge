@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from .diagnostics import diagnose, class_distribution
 
 
 def _count(value, name, minimum=0):
@@ -16,7 +17,7 @@ def _count(value, name, minimum=0):
 class TrainingMonitor:
     """Single writer per snapshot path. Record completed batches, not optimizer steps."""
     def __init__(self, path, *, epochs, batches_per_epoch, history_limit=500,
-                 publish_interval=1.0):
+                 publish_interval=1.0, archive=None, diagnostics=None):
         self.path = Path(path)
         self.epochs = _count(epochs, "epochs", 1)
         self.batches = _count(batches_per_epoch, "batches_per_epoch", 1)
@@ -33,9 +34,19 @@ class TrainingMonitor:
         self.resources = {}
         self.artifacts = []
         self.status = "running"
+        self.diagnostic_options = dict(diagnostics or {})
+        diagnose([], **self.diagnostic_options)
+        self.batch_distribution = {}
+        self.preview = None
+        self.archive = Path(archive) if archive is not None else None
+        if self.archive is not None:
+            if self.archive.resolve() == self.path.resolve():
+                raise ValueError("Archive and snapshot must be different files")
+            with self.archive.open("x", encoding="utf-8") as stream:
+                stream.write(json.dumps({"event": "start", "epochs": self.epochs, "batches_per_epoch": self.batches}) + "\n")
         self._publish(force=True)
 
-    def batch(self, *, epoch, batch, samples=0, metrics=None):
+    def batch(self, *, epoch, batch, samples=0, metrics=None, labels=None):
         if self.status != "running":
             raise RuntimeError("Monitor already finished")
         _count(epoch, "epoch", 1)
@@ -50,11 +61,14 @@ class TrainingMonitor:
         for key, raw in (metrics or {}).items():
             value = float(raw.detach().item() if hasattr(raw, "detach") else raw)
             values[str(key)] = value if math.isfinite(value) else None
+        distribution = class_distribution(labels) if labels is not None else {}
+        self.batch_distribution = distribution
         self.completed = step
         self.samples += samples
         self.metrics = values
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
+        self._append({"event": "batch", "step": step, "samples": samples, "metrics": values, "labels": distribution})
         self._publish(force=step == self.epochs * self.batches)
 
     def epoch_end(self, epoch, metrics):
@@ -69,6 +83,18 @@ class TrainingMonitor:
             value = float(raw.detach().item() if hasattr(raw, "detach") else raw)
             values[str(key)] = value if math.isfinite(value) else None
         self.epoch_history.append({"epoch": epoch, "metrics": values})
+        self._append({"event": "epoch", "epoch": epoch, "metrics": values})
+        self._publish(force=True)
+
+    def _append(self, event):
+        if self.archive is not None:
+            with self.archive.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(event, allow_nan=False) + "\n")
+
+    def record_preview(self, path):
+        """Explicitly publish an image preview; do not archive image content."""
+        from .preview import image_preview
+        self.preview = image_preview(path)
         self._publish(force=True)
 
     def record_resources(self, resources):
@@ -88,6 +114,7 @@ class TrainingMonitor:
 
     def finish(self, *, failed=False):
         self.status = "failed" if failed else ("completed" if self.completed == self.epochs * self.batches else "stopped")
+        self._append({"event": "finish", "status": self.status})
         self._publish(force=True)
 
     def snapshot(self):
@@ -105,7 +132,8 @@ class TrainingMonitor:
                 "eta_seconds": (total - self.completed) / rate if rate and self.status == "running" else (0 if self.status == "completed" else None),
                 "metrics": dict(self.metrics), "history": list(self.history),
                 "artifacts": list(self.artifacts), "epoch_history": list(self.epoch_history),
-                "resources": dict(self.resources)}
+                "resources": dict(self.resources), "diagnostics": diagnose(self.epoch_history, **self.diagnostic_options),
+                "batch_distribution": dict(self.batch_distribution), "preview_png": self.preview}
 
     def _publish(self, *, force=False):
         now = time.monotonic()

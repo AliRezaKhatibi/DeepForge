@@ -3,7 +3,7 @@ from .monitor import TrainingMonitor
 from .resources import sample_resources
 
 
-def attach_monitor(model, path, *, publish_interval=1.0, resources=False):
+def attach_monitor(model, path, *, publish_interval=1.0, resources=False, archive=None, diagnostics=None):
     """Attach before model.train(). Fixed-length, fresh single-process runs only.
 
     Callback compatibility depends on Ultralytics version. This adapter observes
@@ -14,7 +14,7 @@ def attach_monitor(model, path, *, publish_interval=1.0, resources=False):
         if getattr(trainer, "start_epoch", 0) != 0:
             raise ValueError("Resumed training is not supported by this adapter")
         state["monitor"] = TrainingMonitor(path, epochs=int(trainer.epochs),
-            batches_per_epoch=len(trainer.train_loader), publish_interval=publish_interval)
+            batches_per_epoch=len(trainer.train_loader), publish_interval=publish_interval, archive=archive, diagnostics=diagnostics)
     def epoch_start(trainer):
         state["epoch"] = int(trainer.epoch) + 1
         state["batch"] = 0
@@ -35,7 +35,12 @@ def attach_monitor(model, path, *, publish_interval=1.0, resources=False):
                 metrics[str(key)] = float(value)
             except (TypeError, ValueError):
                 continue
-        state["monitor"].epoch_end(state["epoch"], metrics)
+        monitor = state["monitor"]
+        if monitor.epoch_history and monitor.epoch_history[-1]["epoch"] == state["epoch"]:
+            return  # Final best-model evaluation can repeat the callback.
+        for key, value in (getattr(trainer, "lr", None) or {}).items():
+            metrics["lr/" + str(key)] = float(value)
+        monitor.epoch_end(state["epoch"], metrics)
         if resources:
             state["monitor"].record_resources(sample_resources())
 

@@ -24,11 +24,17 @@ def snapshot_html(path):
         rows.extend(("Validation: " + k, v) for k,v in data["epoch_history"][-1]["metrics"].items())
     rows.extend(data.get("resources", {}).items())
     rows.extend(("Output: " + a["name"], a["bytes"]) for a in data["artifacts"])
+    rows.extend(("Diagnostic", item["code"]) for item in data.get("diagnostics", {}).get("findings", []))
+    rows.extend(("Batch class " + k, v) for k,v in data.get("batch_distribution", {}).get("counts", {}).items())
+    encoded = data.get("preview_png")
+    preview = ""
+    if isinstance(encoded, str) and len(encoded) <= 800000 and encoded.startswith("iVBORw0KGgo"):
+        preview = f'<img alt="Opt-in batch preview" style="max-width:100%" src="data:image/png;base64,{esc(encoded)}">'
     table = "".join(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>" for k,v in rows)
     return ('<section style="background:#F3EFE5;color:#123B32;padding:16px;border-radius:12px">'
             '<h2>DeepForge · XVARNA</h2>'
             f'<progress max="100" value="{progress:.4f}"></progress> {progress:.1f}%'
-            f'<table>{table}</table></section>')
+            f'<table>{table}</table>{preview}</section>')
 
 
 def display_snapshot(path, *, display_id=None):

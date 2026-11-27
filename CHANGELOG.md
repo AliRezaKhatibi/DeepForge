@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 - Training analytics candidate
+
+- Added configurable loss-trend signals, gradient threshold observations and per-batch class counts.
+- Added optional JSONL event archives and explicitly selected bounded image previews for desktop and notebook snapshots.
+- Added learning-rate capture and repeated final-validation callback handling; added a real CPU YOLO smoke job.
+
 ## 0.5.0 - Live training monitoring candidate
 
 - Added atomic local training snapshots, progress, throughput, ETA, bounded metric history and output metadata.

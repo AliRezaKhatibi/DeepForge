@@ -30,12 +30,16 @@ def main(argv=None):
     metric_select.pack(fill="x", padx=24)
     chart = tk.Canvas(root, bg="#FFFCF5", highlightthickness=0, height=220)
     chart.pack(fill="both", expand=True, padx=24, pady=8)
+    preview_label = tk.Label(root, bg=cream)
+    preview_label.image = None
+    preview_value = None
     artifacts = tk.StringVar()
     tk.Label(root, textvariable=artifacts, bg=cream, fg=jade, justify="left",
              wraplength=580).pack(pady=8)
     def duration(value):
         return "unknown" if value is None else f"{int(value)//60}m {int(value)%60:02d}s"
     def refresh():
+        nonlocal preview_value
         try:
             data = json.loads(Path(args.snapshot).read_text(encoding="utf-8"))
             if data["schema_version"] != 1:
@@ -66,8 +70,25 @@ def main(argv=None):
             validation = data.get("epoch_history", [])
             extra = "\nValidation: " + "  |  ".join(f"{k}: {v:.4g}" if isinstance(v, (int, float)) else f"{k}: {v}" for k, v in validation[-1]["metrics"].items()) if validation else ""
             extra += "\nResources: " + "  |  ".join(f"{k}: {v:.4g}" if isinstance(v, (int, float)) else f"{k}: {v}" for k, v in data["resources"].items()) if data.get("resources") else ""
+            findings = data.get("diagnostics", {}).get("findings", [])
+            if findings:
+                extra += "\nDiagnostics: " + " | ".join(str(x["code"]) for x in findings)
+            distribution = data.get("batch_distribution", {}).get("counts", {})
+            if distribution:
+                extra += "\nBatch labels: " + str(distribution)
+            encoded = data.get("preview_png")
+            if encoded != preview_value:
+                if encoded is None:
+                    preview_label.pack_forget()
+                    preview_label.image = None
+                elif isinstance(encoded, str) and len(encoded) <= 800000 and encoded.startswith("iVBORw0KGgo"):
+                    image = tk.PhotoImage(data=encoded, format="png")
+                    preview_label.image = image
+                    preview_label.configure(image=image)
+                    preview_label.pack(pady=4)
+                preview_value = encoded
             artifacts.set("Output files: " + (" | ".join(f'{a["name"]} ({a["bytes"] if a["exists"] else "missing"} bytes)' for a in data["artifacts"][-5:]) or "None registered") + extra)
-        except (OSError, ValueError, KeyError, TypeError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, tk.TclError) as exc:
             status.set(f"Snapshot unavailable: {type(exc).__name__}")
         root.after(1000, refresh)
     root.after(100, refresh)
