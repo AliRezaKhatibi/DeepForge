@@ -447,3 +447,36 @@ Pass `monitor=monitor, refresh=lambda: view.refresh(force=True)` to TorchCheckpo
 ### Fixed notebook header
 
 `NotebookMonitor(path, dashboard_height=480, fixed_header=True, max_epochs=20)` keeps the summary outside the independently scrolling details region and shows the latest 20 reached epochs, newest first, plus the next pending epoch if applicable. Earlier epochs remain in the snapshot and automatic `<snapshot>.epochs.jsonl` log. Set `max_epochs=None` to render all cards. Notebook output replacement may reset scroll position or expanded details; the header remains outside the inner scroll area. The default epoch log appends run start, training epoch, validation, stage and finish events; explicit archive paths retain batch events too.
+
+
+### Interactive PyTorch sessions (0.7.1.1.2)
+
+Install the optional `interactive` extra for notebook widgets. Run
+`setup_panel("config.json")` from `deepforge.notebook_setup` in a separate
+cell and save the configuration before building the session.
+
+```python
+from deepforge.notebook_setup import build_training_session
+monitor, view, checkpoint, session = build_training_session(
+    "config.json", run_id="experiment_001", epochs=50,
+    batches_per_epoch=len(train_loader), model=model, optimizer=optimizer,
+    experiment_metadata={"dataset_fingerprint": dataset_fingerprint},
+)
+session.controls()
+# On a fresh process, explicitly restore a paused session:
+# state = session.restore()
+# start_epoch = state["epoch"] + 1
+# After each epoch's training, validation and scheduler updates:
+# monitor.epoch_end(epoch, {"loss": validation_loss})
+# if session.epoch_boundary(epoch, global_step=global_step):
+#     break
+# checkpoint.save_epoch(epoch, global_step=global_step, metadata=session.metadata)
+```
+
+Record training loss as `loss` and validation loss as `loss` in
+`epoch_end`. Warnings are heuristic, never automatic stopping decisions.
+Cards are chronological, with the latest 20 by default. Earlier records
+remain in the JSONL log. Browser audio autoplay and widget callbacks during
+a blocking training cell are frontend-dependent; use a cooperative loop
+or a supported external control mechanism. The recovery API requires an
+identically configured model and dataset; it does not recreate user code.
