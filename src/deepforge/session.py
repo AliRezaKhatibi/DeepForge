@@ -14,6 +14,8 @@ class TrainingSession:
         self.recovery = TorchCheckpoint(
             CheckpointStore(self.root, "recovery", CheckpointPolicy()),
             checkpoint.model, checkpoint.optimizer, monitor=monitor, refresh=checkpoint.refresh, **checkpoint.components)
+        from .control import StopControl
+        self.control = StopControl(self.root / "control.json")
         self.target = None
         self.lock = Lock()
         self.state_path = self.root / "session.json"
@@ -34,8 +36,17 @@ class TrainingSession:
         with self.lock:
             self.target = None
 
+    def poll_control(self):
+        command = self.control.consume()
+        if command:
+            if command["action"] == "cancel":
+                self.cancel_stop()
+            else:
+                self.request_stop(after_next=command.get("after_next", True))
+
     def epoch_boundary(self, epoch, *, global_step):
         """Call after validation and scheduler updates; break loop if True."""
+        self.poll_control()
         with self.lock:
             if self.target is None or epoch < self.target:
                 return False
