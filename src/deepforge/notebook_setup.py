@@ -1,6 +1,5 @@
 """Optional notebook widgets; no training starts until the caller starts it."""
 import math
-import struct
 from .checkpoint import atomic_json
 
 def setup_panel(path):
@@ -40,13 +39,14 @@ class AudioAlerts:
         self.enabled=enabled
         self.last=None
     def notify(self, epoch, health):
-        if not self.enabled or health != "Severe overfitting warning" or self.last == epoch:
+        if not self.enabled or health not in ("Severe overfitting warning", "Nonfinite metric", "Gradient explosion") or self.last == (epoch, health):
             return False
         from IPython.display import Audio, display
         rate=8000
-        samples=[0.25*math.sin(2*math.pi*660*i/rate) if (i//1600)%2==0 else 0 for i in range(8000)]
+        frequency = {"Severe overfitting warning":660,"Nonfinite metric":880,"Gradient explosion":440}[health]
+        samples=[0.25*math.sin(2*math.pi*frequency*i/rate) if (i//1600)%2==0 else 0 for i in range(8000)]
         display(Audio(samples,rate=rate,autoplay=True))
-        self.last=epoch
+        self.last=(epoch, health)
         return True
 
 
