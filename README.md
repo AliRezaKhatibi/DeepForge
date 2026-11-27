@@ -201,6 +201,34 @@ report = read_binary_scores('examples/scores.csv')
 print(report['roc_auc'])
 ```
 
+## Automated quality gates (Python integration)
+
+Install directly from GitHub (PyPI publication is not yet available):
+
+```bash
+python -m pip install "git+https://github.com/AliRezaKhatibi/DeepForge.git"
+```
+
+Use DeepForge as a headless library without launching the desktop interface:
+
+```python
+from deepforge.automation import (
+    dataset_check, group_check, run_checks, save_report, require_pass,
+)
+
+report = run_checks([
+    dataset_check("dataset"),
+    group_check("groups.csv"),
+])
+save_report(report, "quality-report.json")
+require_pass(report)  # Raises AuditFailed if a check fails or errors.
+# Start model training only after the gate succeeds.
+```
+
+The default classification dataset gate requires nonempty train, val (or validation), and test splits, and zero exact cross-split duplicates. Adjust required_splits explicitly for other protocols. Group checks require a complete, correct manifest. Optional image and YOLO gates and in-memory classification metrics are also available. Install the images extra for image decoding. Similarity matches require human review; passing these configured checks is not proof of dataset independence. A truncated image scan fails the image gate. Reports may contain sensitive paths and must be reviewed before sharing. Report exports refuse to overwrite existing files.
+
+Run a gate in CI or before training with `python examples/quality_gate.py dataset --groups groups.csv`. Custom checks use `Check(name, callable, rules)`, where rules are tuples of (dotted report field, comparison operator, expected value). Supported operators: eq, ne, ge, gt, le, lt. Missing fields and execution errors fail closed. An empty rule set checks execution only.
+
 ## Tests and release verification
 
 ```bash
