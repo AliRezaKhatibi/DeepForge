@@ -43,11 +43,12 @@ class TrainingMonitor:
         diagnose([], **self.diagnostic_options)
         self.batch_distribution = {}
         self.preview = None
-        self.archive = Path(archive) if archive is not None else None
+        self.archive = Path(archive) if archive is not None else self.path.with_name(self.path.name + ".epochs.jsonl")
+        self._epoch_only_archive = archive is None
         if self.archive is not None:
             if self.archive.resolve() == self.path.resolve():
                 raise ValueError("Archive and snapshot must be different files")
-            with self.archive.open("x", encoding="utf-8") as stream:
+            with self.archive.open("a" if self._epoch_only_archive else "x", encoding="utf-8") as stream:
                 stream.write(json.dumps({"event": "start", "epochs": self.epochs, "batches_per_epoch": self.batches}) + "\n")
         self._publish(force=True)
 
@@ -75,6 +76,8 @@ class TrainingMonitor:
             self.epoch_records.setdefault(epoch, {})["training"] = dict(values)
         self.history.append({"step": step, "metrics": values})
         self.history = self.history[-self.limit:]
+        if batch == self.batches:
+            self._append({"event": "training_epoch", "epoch": epoch, "metrics": values})
         self._append({"event": "batch", "step": step, "samples": samples, "metrics": values, "labels": distribution})
         if self.resource_interval is not None and time.monotonic() - self._last_resource >= self.resource_interval:
             from .resources import sample_resources
@@ -118,7 +121,7 @@ class TrainingMonitor:
         self._publish(force=True)
 
     def _append(self, event):
-        if self.archive is not None:
+        if self.archive is not None and not (self._epoch_only_archive and event["event"] == "batch"):
             with self.archive.open("a", encoding="utf-8") as stream:
                 stream.write(json.dumps(event, allow_nan=False) + "\n")
 
