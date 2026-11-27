@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 
 
-def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25):
+def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0):
     if max_epochs is not None and (type(max_epochs) is not int or max_epochs < 2):
         raise ValueError("max_epochs must be None or an integer >= 2")
     if type(dashboard_height) is not int or dashboard_height < 120:
@@ -67,7 +67,7 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
         metrics = record.get("training", data["metrics"] if epoch == current else {})
         if record.get("validation"):
             metrics = {**metrics, **{"val_" + k: v for k, v in record["validation"].items()}}
-        health, color = epoch_health(records, epoch, patience=alert_patience, threshold=alert_threshold) if percent == 100 and show_diagnostics else (state, '#305070' if done else '#808080')
+        health, color = epoch_health(records, epoch, patience=alert_patience, threshold=alert_threshold, gradient_threshold=gradient_threshold) if percent == 100 and show_diagnostics else (state, '#305070' if done else '#808080')
         if epoch_metrics is not None:
             metrics = {k:v for k,v in metrics.items() if k in epoch_metrics}
         details = " · ".join(f"{esc(k)}: {fmt(v)}" for k, v in metrics.items())
@@ -84,8 +84,8 @@ def snapshot_html(path, *, max_epochs=20, show_stages=True, show_charts=True, sh
                      f'<div>{done}/{data["batches_per_epoch"]} batches · {percent:.1f}%</div>'
                      f'<details{" open" if epoch == current else ""}><summary>Details</summary><div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</details></article>')
     warning = ''
-    health, color = epoch_health(records, current, patience=alert_patience, threshold=alert_threshold)
-    if show_diagnostics and health in ('Severe overfitting warning','Possible overfitting','Watch','Nonfinite metric'):
+    health, color = epoch_health(records, current, patience=alert_patience, threshold=alert_threshold, gradient_threshold=gradient_threshold)
+    if show_diagnostics and health in ('Severe overfitting warning','Possible overfitting','Watch','Nonfinite metric','Gradient explosion'):
         warning = f'<div role="alert" style="border:2px solid {color};padding:12px;margin:8px 0">{health}. Review recorded metrics before continuing.</div>'
     archive = ""
     if show_history and first > 1:
@@ -148,7 +148,7 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, audio=False):
+    def __init__(self, path, *, interval=1.0, max_epochs=20, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True, fixed_header=True, dashboard_height=480, epoch_metrics=None, overall_fields=None, alert_patience=3, alert_threshold=0.25, gradient_threshold=100.0, audio=False):
         from .notebook_setup import AudioAlerts
         self.audio = AudioAlerts(audio)
         if not math.isfinite(alert_threshold) or alert_threshold <= 0 or type(alert_patience) is not int or alert_patience < 1:
@@ -164,7 +164,7 @@ class NotebookMonitor:
         self.show_charts = show_charts
         self.show_resources = show_resources
         self.theme = theme
-        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall, fixed_header=fixed_header, dashboard_height=dashboard_height, epoch_metrics=epoch_metrics, overall_fields=overall_fields, alert_patience=alert_patience, alert_threshold=alert_threshold)
+        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall, fixed_header=fixed_header, dashboard_height=dashboard_height, epoch_metrics=epoch_metrics, overall_fields=overall_fields, alert_patience=alert_patience, alert_threshold=alert_threshold, gradient_threshold=gradient_threshold)
         self.path = Path(path)
         self.interval = interval
         self._last = None
@@ -184,7 +184,7 @@ class NotebookMonitor:
         if self.audio.enabled:
             from .epoch_health import epoch_health
             data = json.loads(self.path.read_text(encoding='utf-8'))
-            health, _ = epoch_health(data.get('epoch_records', {}), data['epoch'], patience=self.sections['alert_patience'], threshold=self.sections['alert_threshold'])
+            health, _ = epoch_health(data.get('epoch_records', {}), data['epoch'], patience=self.sections['alert_patience'], threshold=self.sections['alert_threshold'], gradient_threshold=self.sections['gradient_threshold'])
             self.audio.notify(data['epoch'], health)
         self._last = now
         return True
