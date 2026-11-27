@@ -1,8 +1,13 @@
 """Optional resource sampling; no network calls or external processes."""
 
 
-def sample_resources():
+def sample_resources(path=None):
     result = {}
+    if path is not None:
+        import shutil
+        disk = shutil.disk_usage(path)
+        result['disk_percent'] = 100 * disk.used / disk.total
+        result['disk_free_bytes'] = disk.free
     try:
         import psutil
     except ImportError:
@@ -29,4 +34,8 @@ def sample_resources():
             result["cuda_memory_percent"] = 100 * (total - free) / total
             result["cuda_allocated_bytes"] = torch.cuda.memory_allocated(device)
             result["cuda_reserved_bytes"] = torch.cuda.memory_reserved(device)
+            try:
+                result["gpu_utilization_percent"] = float(torch.cuda.utilization(device))
+            except Exception:
+                pass  # Optional NVML support; unavailable is not zero.
     return result
