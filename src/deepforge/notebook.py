@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 
 
-def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade'):
+def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True):
     if type(max_epochs) is not int or max_epochs < 2:
         raise ValueError("max_epochs must be an integer >= 2")
     palettes = {"jade": ("#F3EFE5", "#123B32", "#ffffff"), "light": ("#ffffff", "#17212b", "#f5f5f5"), "dark": ("#17212b", "#f3efe5", "#253344")}
@@ -26,17 +26,21 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
         ("Batches/s", round(data["batches_per_second"], 2)),
     ):
         rows.append((label, value))
-    rows.extend(data["metrics"].items())
-    if data.get("epoch_history"):
+    if show_metrics:
+        rows.extend(data["metrics"].items())
+    if show_metrics and data.get("epoch_history"):
         rows.extend(("Validation: " + k, v) for k,v in data["epoch_history"][-1]["metrics"].items())
     if show_resources:
         rows.extend(data.get("resources", {}).items())
-    rows.extend(("Output: " + a["name"], a["bytes"]) for a in data["artifacts"])
-    rows.extend(("Diagnostic", item["code"]) for item in data.get("diagnostics", {}).get("findings", []))
-    rows.extend(("Batch class " + k, v) for k,v in data.get("batch_distribution", {}).get("counts", {}).items())
+    if show_artifacts:
+        rows.extend(("Output: " + a["name"], a["bytes"]) for a in data["artifacts"])
+    if show_diagnostics:
+        rows.extend(("Diagnostic", item["code"]) for item in data.get("diagnostics", {}).get("findings", []))
+    if show_metrics:
+        rows.extend(("Batch class " + k, v) for k,v in data.get("batch_distribution", {}).get("counts", {}).items())
     encoded = data.get("preview_png")
     preview = ""
-    if isinstance(encoded, str) and len(encoded) <= 800000 and encoded.startswith("iVBORw0KGgo"):
+    if show_preview and isinstance(encoded, str) and len(encoded) <= 800000 and encoded.startswith("iVBORw0KGgo"):
         preview = f'<img alt="Opt-in batch preview" style="max-width:100%" src="data:image/png;base64,{esc(encoded)}">'
     def fmt(value):
         return f"{value:.4f}" if isinstance(value, float) else esc(value)
@@ -51,7 +55,7 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
     last = min(data["epochs"], current + 1)
     first = max(1, last - max_epochs + 1)
     cards = []
-    for epoch in range(first, last + 1):
+    for epoch in range(first, last + 1) if show_epochs else ():
         done = max(0, min(data["batches_per_epoch"], data["completed_batches"] - (epoch - 1) * data["batches_per_epoch"]))
         percent = 100 * done / data["batches_per_epoch"]
         record = records.get(str(epoch), {})
@@ -71,7 +75,24 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
         cards.append(f'<article style="background:{panel};color:{fg};border:1px solid #dedbd0;border-radius:12px;padding:12px;margin-top:10px">'
                      f'<strong>Epoch {epoch} / {data["epochs"]}</strong> · {state}{bar(percent)}'
                      f'<div>{done}/{data["batches_per_epoch"]} batches · {percent:.1f}%</div>'
-                     f'<div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</article>')
+                     f'<details{" open" if epoch == current else ""}><summary>Details</summary><div style="overflow-wrap:anywhere">{details}</div>{"".join(stages)}</details></article>')
+    archive = ""
+    if show_history and first > 1:
+        old = []
+        for epoch in range(1, first):
+            record = records.get(str(epoch), {})
+            summary = " · ".join(f"{esc(kind)} {esc(k)}: {fmt(v)}" for kind in ("training", "validation") for k,v in record.get(kind, {}).items())
+            old.append(f"<tr><td>{epoch}</td><td>{summary}</td></tr>")
+        archive = f'<details><summary>Earlier epochs ({first-1})</summary><div style="max-height:300px;overflow:auto"><table>{"".join(old)}</table></div></details>'
+    hardware = ""
+    if show_resources:
+        meters = []
+        for key, label in (("cpu_percent","CPU"),("ram_percent","RAM"),("cuda_memory_percent","VRAM"),("gpu_utilization_percent","GPU compute"),("disk_percent","Disk")):
+            value = data.get("resources", {}).get(key)
+            if isinstance(value, (int,float)) and math.isfinite(value):
+                meters.append(f"<div>{label}: {value:.1f}%{bar(max(0,min(100,value)))}</div>")
+        hardware = "".join(meters)
+    overall = f"<strong>Overall training progress</strong> {progress:.1f}%{bar(progress)}" if show_overall else ""
     charts = []
     if show_charts:
         for metric in ("loss", "accuracy"):
@@ -101,8 +122,8 @@ def snapshot_html(path, *, max_epochs=12, show_stages=True, show_charts=True, sh
     table = "".join(f"<tr><th>{esc(k)}</th><td>{fmt(v)}</td></tr>" for k,v in rows)
     return (f'<section style="background:{bg};color:{fg};padding:16px;border-radius:12px">'
             f'<h2 style="color:{fg};margin:0 0 12px">DeepForge · XVARNA</h2>'
-            f'<strong>Overall training progress</strong> {progress:.1f}%{bar(progress)}'
-            f'{"".join(cards)}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</section>')
+            f'{overall}'
+            f'{"".join(cards)}{archive}{hardware}{"".join(charts)}<table style="color:{fg};overflow-wrap:anywhere;width:100%">{table}</table>{preview}</section>')
 
 
 def display_snapshot(path, *, display_id=None):
@@ -117,7 +138,7 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade'):
+    def __init__(self, path, *, interval=1.0, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade', show_history=True, show_epochs=True, show_preview=True, show_diagnostics=True, show_artifacts=True, show_metrics=True, show_overall=True):
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
@@ -128,6 +149,7 @@ class NotebookMonitor:
         self.show_charts = show_charts
         self.show_resources = show_resources
         self.theme = theme
+        self.sections = dict(show_history=show_history, show_epochs=show_epochs, show_preview=show_preview, show_diagnostics=show_diagnostics, show_artifacts=show_artifacts, show_metrics=show_metrics, show_overall=show_overall)
         self.path = Path(path)
         self.interval = interval
         self._last = None
@@ -139,7 +161,7 @@ class NotebookMonitor:
         now = time.monotonic()
         if not force and self._last is not None and now - self._last < self.interval:
             return False
-        output = HTML(snapshot_html(self.path, max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme))
+        output = HTML(snapshot_html(self.path, max_epochs=self.max_epochs, show_stages=self.show_stages, show_charts=self.show_charts, show_resources=self.show_resources, theme=self.theme, **self.sections))
         if self._handle is None:
             self._handle = display(output, display_id=True)
         else:
