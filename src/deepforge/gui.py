@@ -47,8 +47,8 @@ class Studio:
         self.font = 'Segoe UI' if root.tk.call('tk', 'windowingsystem') == 'win32' else 'DejaVu Sans'
         self.configure_style()
         self.side = side = tk.Frame(root, bg=SIDEBAR, width=248); side.pack(side='left', fill='y'); side.pack_propagate(False)
-        self.logo = tk.PhotoImage(file=str(ASSETS / 'xvarna_sidebar.png'))
-        self.app_icon = tk.PhotoImage(file=str(ASSETS / 'icon.png'))
+        self.logo = self.load_brand_image('xvarna_sidebar.png')
+        self.app_icon = self.load_brand_image('icon.png')
         root.iconphoto(True, self.app_icon)
         brand = tk.Frame(side, bg=SIDEBAR); brand.pack(fill='x', padx=20, pady=(16,10))
         tk.Label(brand,image=self.logo,bg=SIDEBAR).pack(anchor='w')
@@ -184,6 +184,15 @@ class Studio:
             except (ValueError, OSError) as exc:
                 messagebox.showerror("Checkpoint", str(exc), parent=dialog)
         ttk.Button(dialog, text="Export configuration", command=save).pack(pady=12)
+
+    def load_brand_image(self, filename):
+        path = ASSETS / filename
+        try:
+            return tk.PhotoImage(master=self.root, file=str(path))
+        except tk.TclError:
+            from PIL import Image, ImageTk
+            with Image.open(path) as image:
+                return ImageTk.PhotoImage(image.convert("RGBA"), master=self.root)
 
     def configure_style(self):
         s=self.style
