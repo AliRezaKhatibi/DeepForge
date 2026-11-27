@@ -29,18 +29,6 @@ jobs:
         run: |
           google-chrome --headless --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1000,900 --screenshot="$PWD/gallery/live-notebook.png" "file://$PWD/gallery/live-notebook.html"
           test -s gallery/live-notebook.png
-      - name: Encode public synthetic gallery for repository import
-        run: |
-          python - <<'PY'
-          import base64
-          from pathlib import Path
-          for p in sorted(Path("gallery").glob("*")):
-              data = base64.b64encode(p.read_bytes()).decode("ascii")
-              print(f"DFG_BEGIN {p.name} {len(data)}")
-              for i in range(0, len(data), 2048):
-                  print("DFG_DATA " + data[i:i+2048])
-              print(f"DFG_END {p.name}")
-          PY
       - uses: actions/upload-artifact@v4
         with:
           name: deepforge-live-gallery

@@ -288,7 +288,21 @@ The adapter is tested against a synthetic callback protocol, not a real Ultralyt
 
 The live viewer provides a selector for available batch metric curves. Call `monitor.epoch_end(epoch, metrics)` after validation to retain epoch-level metrics separately. The Ultralytics adapter records the trainer's reported metrics through the fit-epoch callback. Opt in with `attach_monitor(model, "live.json", resources=True)`; install the resources extra for CPU/RAM measurements. CUDA allocated/reserved bytes describe the current PyTorch allocator, not total GPU utilization. Resource sampling occurs at epoch boundaries. 
 
-In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews, full batch history, and new desktop screenshots are not included.
+In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and `display_snapshot("live.json")` to display a snapshot without Tk. Refresh by calling it again; no background polling is started. Install the notebook extra if IPython is unavailable. These features have synthetic tests, not real hosted notebook or GPU validation. Batch image previews and full batch history are not included.
+
+### Live monitor gallery
+
+The following screenshots were captured from the running desktop monitor under Linux/Xvfb using **synthetic demo metrics**, not a trained-model benchmark. CPU/RAM figures reflect the capture environment.
+
+![Live training monitor showing batch and epoch progress, ETA, loss and output metadata](docs/images/live-training.png)
+
+![Live training monitor with box loss selected](docs/images/live-box-loss.png)
+
+The following image shows the actual notebook renderer output opened in a browser, not a hosted Jupyter session.
+
+![Browser-rendered notebook snapshot](docs/images/live-notebook.png)
+
+[Open the notebook HTML example](docs/images/live-notebook.html).
 
 ### Reproducing live monitor screenshots
 
