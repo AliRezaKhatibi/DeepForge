@@ -117,7 +117,7 @@ class NotebookMonitor:
     Call refresh from the training thread after recording batches or epochs.
     No background thread, GUI, or browser server is required.
     """
-    def __init__(self, path, *, interval=1.0, max_epochs=12, show_stages=True):
+    def __init__(self, path, *, interval=1.0, max_epochs=12, show_stages=True, show_charts=True, show_resources=True, theme='jade'):
         import math
         if not math.isfinite(interval) or interval < 0:
             raise ValueError("interval must be finite and nonnegative")
