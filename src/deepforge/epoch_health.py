@@ -1,12 +1,15 @@
 """Conservative, configurable loss-trend warnings; not a diagnosis."""
 import math
 
-def epoch_health(records, epoch, *, patience=3, threshold=0.25):
+def epoch_health(records, epoch, *, patience=3, threshold=0.25, gradient_threshold=100.0):
     current = records.get(str(epoch), records.get(epoch, {}))
     for group in ("training", "validation"):
         metrics = current.get(group, {})
         if any(v is None or (isinstance(v,(int,float)) and not math.isfinite(v)) for v in metrics.values()):
             return "Nonfinite metric", "#b91c1c"
+    gradient = current.get('training', {}).get('gradient_norm')
+    if isinstance(gradient, (int,float)) and gradient > gradient_threshold:
+        return 'Gradient explosion', '#b91c1c'
     pairs = []
     for i in range(max(1, epoch-patience), epoch+1):
         r = records.get(str(i), records.get(i, {}))
