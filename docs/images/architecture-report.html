@@ -1,0 +1,186 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepForge | Architecture profile</title>
+<style>body{font:16px system-ui,sans-serif;background:#f3efe5;color:#183c33;margin:0}main{max-width:1050px;margin:0 auto;padding:44px 24px}header{border-bottom:2px solid #8a651e;padding-bottom:20px}small{color:#536b60}h1{font-size:36px;margin:8px 0}section{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}article{background:white;border:1px solid #dddcd0;border-radius:10px;padding:18px;flex:1;min-width:160px}article strong{display:block;font-size:24px;margin-top:8px;color:#12664f}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #e2e7ea;overflow-wrap:anywhere}th{width:45%;font-weight:500}pre{background:#123b32;color:#f5f0e9;padding:20px;overflow:auto;border-radius:8px}@media print{body{background:white}main{padding:0}pre{white-space:pre-wrap;color:#111;background:white}}</style>
+<main><header><small>DEEPFORGE STUDIO · XVARNA · v0.7.1 · LOCAL ANALYSIS</small><h1>Architecture profile</h1><small>Exported 2026-11-27T18:36:35.780907+00:00 · Review findings and sensitive paths before sharing.</small></header><section><article><small>Parameters</small><strong>9,610</strong></article><article><small>Partial MACs</small><strong>75,776</strong></article><article><small>Median ms</small><strong>0.014</strong></article></section><h2>Visualization</h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 350" role="img" aria-label="Analysis chart" style="width:100%;height:auto;background:white;border-radius:8px"><line x1="180.00" y1="32.00" x2="180.00" y2="295.00" stroke="#d8e0e7" stroke-width="1"/><text x="180.00" y="317.00" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">0</text><line x1="327.50" y1="32.00" x2="327.50" y2="295.00" stroke="#d8e0e7" stroke-width="1"/><text x="327.50" y="317.00" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">1.64e+04</text><line x1="475.00" y1="32.00" x2="475.00" y2="295.00" stroke="#d8e0e7" stroke-width="1"/><text x="475.00" y="317.00" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">3.28e+04</text><line x1="622.50" y1="32.00" x2="622.50" y2="295.00" stroke="#d8e0e7" stroke-width="1"/><text x="622.50" y="317.00" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">4.92e+04</text><line x1="770.00" y1="32.00" x2="770.00" y2="295.00" stroke="#d8e0e7" stroke-width="1"/><text x="770.00" y="317.00" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">6.55e+04</text><text x="172.00" y="101.75" text-anchor="end" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">0 Linear</text><rect x="180.00" y="85.75" width="590.00" height="24.00" rx="2" fill="#12664f"/><text x="775.00" y="101.75" text-anchor="start" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">6.554e+04</text><text x="172.00" y="233.25" text-anchor="end" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">2 Linear</text><rect x="180.00" y="217.25" width="92.19" height="24.00" rx="2" fill="#8a651e"/><text x="277.19" y="233.25" text-anchor="start" font-family="system-ui,sans-serif" font-size="12" fill="#394c63">1.024e+04</text></svg><h2>Results overview</h2><table><tr><th scope="row">Calls / 1</th><td>0 | Linear | [8, 64] -&gt; [8, 128] | MACs: 65536</td></tr><tr><th scope="row">Calls / 2</th><td>1 | ReLU | [8, 128] -&gt; [8, 128] | MACs: None</td></tr><tr><th scope="row">Calls / 3</th><td>2 | Linear | [8, 128] -&gt; [8, 10] | MACs: 10240</td></tr><tr><th scope="row">parameters</th><td>9610</td></tr><tr><th scope="row">trainable_parameters</th><td>9610</td></tr><tr><th scope="row">frozen_parameters</th><td>0</td></tr><tr><th scope="row">buffer_elements</th><td>0</td></tr><tr><th scope="row">parameter_bytes</th><td>38440</td></tr><tr><th scope="row">buffer_bytes</th><td>0</td></tr><tr><th scope="row">registered_modules</th><td>4</td></tr><tr><th scope="row">registered_leaf_modules</th><td>3</td></tr><tr><th scope="row">executed_leaf_calls</th><td>3</td></tr><tr><th scope="row">estimated_leaf_calls</th><td>2</td></tr><tr><th scope="row">modules</th><td>4 entries (see JSON)</td></tr><tr><th scope="row">calls</th><td>3 entries (see JSON)</td></tr><tr><th scope="row">calls_truncated</th><td>False</td></tr><tr><th scope="row">estimated_macs</th><td>75776</td></tr><tr><th scope="row">estimated_flops_2x_macs</th><td>151552</td></tr><tr><th scope="row">unestimated_leaf_types / ReLU</th><td>1</td></tr><tr><th scope="row">input_tensors</th><td>1 entries (see JSON)</td></tr><tr><th scope="row">output_tensors</th><td>1 entries (see JSON)</td></tr><tr><th scope="row">leaf_output_logical_bytes_sum</th><td>8512</td></tr><tr><th scope="row">devices</th><td>1 entries (see JSON)</td></tr><tr><th scope="row">latency / repeats</th><td>3</td></tr><tr><th scope="row">latency / warmup</th><td>1</td></tr><tr><th scope="row">latency / min_ms</th><td>0.013996</td></tr><tr><th scope="row">latency / median_ms</th><td>0.014302</td></tr><tr><th scope="row">latency / mean_ms</th><td>0.01495433</td></tr><tr><th scope="row">latency / p95_ms</th><td>0.016565</td></tr><tr><th scope="row">cuda_allocator_before</th><td>0 entries (see JSON)</td></tr><tr><th scope="row">cuda_allocator_after</th><td>0 entries (see JSON)</td></tr><tr><th scope="row">limitations</th><td>5 entries (see JSON)</td></tr><tr><th scope="row">architecture</th><td>3 entries (see JSON)</td></tr></table><h2>Complete report</h2><pre>{
+  &quot;parameters&quot;: 9610,
+  &quot;trainable_parameters&quot;: 9610,
+  &quot;frozen_parameters&quot;: 0,
+  &quot;buffer_elements&quot;: 0,
+  &quot;parameter_bytes&quot;: 38440,
+  &quot;buffer_bytes&quot;: 0,
+  &quot;registered_modules&quot;: 4,
+  &quot;registered_leaf_modules&quot;: 3,
+  &quot;executed_leaf_calls&quot;: 3,
+  &quot;estimated_leaf_calls&quot;: 2,
+  &quot;modules&quot;: [
+    {
+      &quot;name&quot;: &quot;&lt;root&gt;&quot;,
+      &quot;type&quot;: &quot;Sequential&quot;,
+      &quot;direct_parameters&quot;: 0,
+      &quot;leaf&quot;: false
+    },
+    {
+      &quot;name&quot;: &quot;0&quot;,
+      &quot;type&quot;: &quot;Linear&quot;,
+      &quot;direct_parameters&quot;: 8320,
+      &quot;leaf&quot;: true
+    },
+    {
+      &quot;name&quot;: &quot;1&quot;,
+      &quot;type&quot;: &quot;ReLU&quot;,
+      &quot;direct_parameters&quot;: 0,
+      &quot;leaf&quot;: true
+    },
+    {
+      &quot;name&quot;: &quot;2&quot;,
+      &quot;type&quot;: &quot;Linear&quot;,
+      &quot;direct_parameters&quot;: 1290,
+      &quot;leaf&quot;: true
+    }
+  ],
+  &quot;calls&quot;: [
+    {
+      &quot;call&quot;: 1,
+      &quot;name&quot;: &quot;0&quot;,
+      &quot;type&quot;: &quot;Linear&quot;,
+      &quot;inputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            64
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 2048
+        }
+      ],
+      &quot;outputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            128
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 4096
+        }
+      ],
+      &quot;output_logical_bytes&quot;: 4096,
+      &quot;estimated_macs&quot;: 65536,
+      &quot;estimated_flops_2x_macs&quot;: 131072
+    },
+    {
+      &quot;call&quot;: 2,
+      &quot;name&quot;: &quot;1&quot;,
+      &quot;type&quot;: &quot;ReLU&quot;,
+      &quot;inputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            128
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 4096
+        }
+      ],
+      &quot;outputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            128
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 4096
+        }
+      ],
+      &quot;output_logical_bytes&quot;: 4096,
+      &quot;estimated_macs&quot;: null,
+      &quot;estimated_flops_2x_macs&quot;: null
+    },
+    {
+      &quot;call&quot;: 3,
+      &quot;name&quot;: &quot;2&quot;,
+      &quot;type&quot;: &quot;Linear&quot;,
+      &quot;inputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            128
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 4096
+        }
+      ],
+      &quot;outputs&quot;: [
+        {
+          &quot;shape&quot;: [
+            8,
+            10
+          ],
+          &quot;dtype&quot;: &quot;torch.float32&quot;,
+          &quot;device&quot;: &quot;cpu&quot;,
+          &quot;bytes&quot;: 320
+        }
+      ],
+      &quot;output_logical_bytes&quot;: 320,
+      &quot;estimated_macs&quot;: 10240,
+      &quot;estimated_flops_2x_macs&quot;: 20480
+    }
+  ],
+  &quot;calls_truncated&quot;: false,
+  &quot;estimated_macs&quot;: 75776,
+  &quot;estimated_flops_2x_macs&quot;: 151552,
+  &quot;unestimated_leaf_types&quot;: {
+    &quot;ReLU&quot;: 1
+  },
+  &quot;input_tensors&quot;: [
+    {
+      &quot;shape&quot;: [
+        8,
+        64
+      ],
+      &quot;dtype&quot;: &quot;torch.float32&quot;,
+      &quot;device&quot;: &quot;cpu&quot;,
+      &quot;bytes&quot;: 2048
+    }
+  ],
+  &quot;output_tensors&quot;: [
+    {
+      &quot;shape&quot;: [
+        8,
+        10
+      ],
+      &quot;dtype&quot;: &quot;torch.float32&quot;,
+      &quot;device&quot;: &quot;cpu&quot;,
+      &quot;bytes&quot;: 320
+    }
+  ],
+  &quot;leaf_output_logical_bytes_sum&quot;: 8512,
+  &quot;devices&quot;: [
+    &quot;cpu&quot;
+  ],
+  &quot;latency&quot;: {
+    &quot;repeats&quot;: 3,
+    &quot;warmup&quot;: 1,
+    &quot;min_ms&quot;: 0.013996000006955,
+    &quot;median_ms&quot;: 0.014302000010957272,
+    &quot;mean_ms&quot;: 0.014954333333131823,
+    &quot;p95_ms&quot;: 0.016564999981483197
+  },
+  &quot;cuda_allocator_before&quot;: [],
+  &quot;cuda_allocator_after&quot;: [],
+  &quot;limitations&quot;: [
+    &quot;MACs count standard Linear and Conv1d/2d/3d leaf calls only; FLOPs = 2*MACs, excluding bias, activation, normalization, pooling, attention and functional operations.&quot;,
+    &quot;Counts are partial, not total network FLOPs; one execution path and one input batch only. Registered modules and executed calls are different counts.&quot;,
+    &quot;Logical tensor bytes can count shared storage and views multiple times; not peak activation or training memory.&quot;,
+    &quot;CUDA allocator observations are process-wide, not model-specific or peak GPU memory; timing depends on device load and synchronization.&quot;,
+    &quot;Trusted forwards can mutate custom state or consume RNG even in eval/inference mode. Avoid concurrent training and profiling of the same model.&quot;
+  ],
+  &quot;architecture&quot;: [
+    64,
+    128,
+    10
+  ]
+}</pre><footer><small>DeepForge Studio · Created by Alireza Khatibi · XVARNA</small></footer></main></html>

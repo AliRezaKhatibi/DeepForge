@@ -347,7 +347,13 @@ The operator report uses the native PyTorch profiler's partial FLOP estimates, i
 
 The explicitly opt-in CUDA peak function resets process-wide allocator peak counters for the known CUDA devices, performs a single evaluation forward, and returns baseline and peak allocation/reservation. It cannot restore old peak counters and is not an isolated measurement of model memory or training VRAM. Do not call it while training or profiling concurrent workloads. Actual CUDA hardware is not available in the CPU CI matrix; the CUDA-only test skips when unavailable.
 
-The Model Inspector now accepts batch size, charts per-layer estimated MACs, and shows compact input/output shape rows in Findings. Actual architecture screenshots are produced by the gallery workflow using a synthetic MLP; the gallery artifact includes the matching HTML report.
+The Model Inspector now accepts batch size, charts per-layer estimated MACs, and shows compact input/output shape rows in Findings. The following images were captured from the running Model Inspector under Linux/Xvfb using a synthetic, randomly initialized MLP (64 → 128 → 10, batch size 8). The latency values describe the CI capture machine and are not a hardware benchmark.
+
+![Actual Model Inspector showing per-layer estimated MACs](docs/images/architecture-profiler.png)
+
+![Actual Model Inspector showing executed layers and tensor shapes](docs/images/architecture-layers.png)
+
+[Open the matching HTML architecture report](docs/images/architecture-report.html). The gallery workflow reproduces these screenshots and the report.
 
 ## Training analytics and persistent events (0.6)
 
