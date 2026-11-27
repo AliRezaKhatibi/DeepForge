@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import json
 import os
 import shutil
@@ -73,12 +74,16 @@ class CheckpointStore:
             raise ValueError("invalid run identifier")
         self.root = Path(root) / run_id
         self.root.mkdir(parents=True, exist_ok=True)
+        if self.root.is_symlink():
+            raise ValueError("run directory must not be a symlink")
         self.policy = policy or CheckpointPolicy()
 
     def _records(self):
         records = []
         for manifest in self.root.glob("epoch-*.json"):
             try:
+                if manifest.is_symlink():
+                    continue
                 data = json.loads(manifest.read_text(encoding="utf-8"))
                 epoch = data["epoch"]
                 if type(epoch) is not int or epoch < 0 or manifest.name != f"epoch-{epoch}.json":
@@ -105,6 +110,8 @@ class CheckpointStore:
             os.close(fd)
             target = self.root / f"epoch-{epoch}.bin"
             manifest = self.root / f"epoch-{epoch}.json"
+            if target.exists() and not manifest.exists() and not target.is_symlink():
+                target.unlink()  # unpublished payload from interrupted save
             if target.exists() or manifest.exists():
                 raise FileExistsError("epoch already exists")
             used = sum(p.stat().st_size for p in self.root.glob("epoch-*.bin"))
@@ -130,6 +137,7 @@ class CheckpointStore:
                 if old_epoch not in protected:
                     old_manifest.unlink()
                     old_payload.unlink()
+            logging.getLogger(__name__).info("checkpoint_saved", extra={"epoch": epoch, "checkpoint_path": str(target)})
             return target
         finally:
             lock.unlink(missing_ok=True)
