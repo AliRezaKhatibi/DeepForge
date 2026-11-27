@@ -20,7 +20,7 @@ def test_epoch_dashboard(tmp_path):
     report_save(store, 1, False, lambda: store.save(1, b"payload"), monitor)
     html = snapshot_html(path)
     assert "Overall training progress" in html
-    assert "Epoch 1 / 3" in html and "Epoch 2 / 3" in html
+    assert "Epoch 1 / 3" in html
     assert "Checkpoint: completed" in html and "Verification: completed" in html
     assert "0.1235" in html and "Loss per epoch" in html
     assert "Accuracy per epoch" in html
@@ -55,7 +55,7 @@ def test_long_run_card_window(tmp_path):
     assert html.count("<article ") == 12
     assert "Epoch 510 / 510" in html
     assert "Epoch 1 / 510" not in html
-    assert "Earlier epochs (498)" in html
+    assert "498 earlier epochs retained" in html
     assert len(monitor.snapshot()["history"]) == 10
     assert len(monitor.snapshot()["epoch_records"]) == 510
     assert len(html) < 150000
@@ -101,3 +101,50 @@ def test_long_run_python_allocation(tmp_path):
         assert peak < 32 * 1024 * 1024
     finally:
         tracemalloc.stop()
+
+
+def test_fixed_header_all_epochs(tmp_path):
+    path = tmp_path / "all.json"
+    monitor = TrainingMonitor(path, epochs=25, batches_per_epoch=1)
+    for epoch in range(1, 26):
+        monitor.batch(epoch=epoch, batch=1)
+    monitor.finish()
+    html = snapshot_html(path, dashboard_height=320)
+    assert html.count("<article ") == 20
+    assert "Epoch 1 / 25" not in html
+    assert "Epoch 6 / 25" in html
+    assert "5 earlier epochs retained" in html
+    events = [json.loads(line) for line in path.with_name(path.name + ".epochs.jsonl").read_text().splitlines()]
+    assert [e["epoch"] for e in events if e["event"] == "training_epoch"] == list(range(1, 26))
+    assert html.index("Overall training progress") < html.index("</header>") < html.index("overflow-y:auto")
+    assert html.index("Epoch 6 / 25") < html.index("Epoch 25 / 25")
+    assert "max-height:320px" in html
+    assert "overflow-y:auto" not in snapshot_html(path, fixed_header=False)
+    with pytest.raises(ValueError):
+        snapshot_html(path, dashboard_height=0)
+
+
+def test_epoch_health_warning(tmp_path):
+    from deepforge.epoch_health import epoch_health
+    path = tmp_path / "health.json"
+    monitor = TrainingMonitor(path, epochs=4, batches_per_epoch=1)
+    for epoch in range(1,5):
+        monitor.batch(epoch=epoch,batch=1,metrics={"loss":1/epoch})
+        monitor.epoch_end(epoch,{"loss":epoch/2})
+    assert epoch_health(monitor.epoch_records,4)[0] == "Severe overfitting warning"
+    assert "Severe overfitting warning" in snapshot_html(path)
+    assert "Severe overfitting warning" not in snapshot_html(path,show_diagnostics=False)
+
+
+def test_gradient_warning(tmp_path):
+    path = tmp_path / "gradient.json"
+    monitor = TrainingMonitor(path, epochs=2, batches_per_epoch=1)
+    monitor.batch(epoch=1,batch=1,metrics={"gradient_norm":150})
+    assert "Gradient explosion" in snapshot_html(path)
+    assert "Gradient explosion" not in snapshot_html(path,gradient_threshold=200)
+
+def test_keep_all_checkpoints(tmp_path):
+    store = CheckpointStore(tmp_path,"all",CheckpointPolicy(keep_last=None))
+    for epoch in range(1,6):
+        store.save(epoch,b"payload")
+    assert len(list(store.root.glob("epoch-*.bin"))) == 5

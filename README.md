@@ -5,13 +5,13 @@
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
 </div>
 
-![Version](https://img.shields.io/badge/version-0.7.1.1.1-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
+![Version](https://img.shields.io/badge/version-0.7.1.1.2-12664F) ![Python](https://img.shields.io/badge/python-3.10%2B-12664F) ![License](https://img.shields.io/badge/license-MIT-E0C58F)
 
 **Inspect · Validate · Evaluate · Reproduce**
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project. Version 0.7.1.1.1 is a release candidate for research and development, not a clinically validated product or a certified production service. It is published on PyPI.
+DeepForge Studio is an early-stage open-source project. Version 0.7.1.1.2 is a release candidate for research and development, not a clinically validated product or a certified production service. It is published on PyPI.
 
 ![DeepForge Studio research dashboard](docs/images/dashboard.png)
 
@@ -46,7 +46,7 @@ The Windows launch scripts have been inspected but not run on Windows in the rel
 In Colab, install into the active kernel without upgrading its preinstalled IPython:
 
 ```python
-%pip install deepforge-research-toolkit==0.7.1.1.1
+%pip install deepforge-research-toolkit==0.7.1.1.2
 ```
 
 In VS Code, install the Python and Jupyter extensions, select your Python environment as the notebook kernel, and run `%pip install -e ".[notebook]"` from the repository root in that kernel. Restart the kernel if upgrading an already imported package.
@@ -346,7 +346,7 @@ The Model workspace now profiles the built-in MLP, with executed call details in
 
 Latency measures a complete uninstrumented forward after warmup, on CPU or synchronized CUDA devices, with median and nearest-rank p95 in milliseconds. Set repeats=0 to disable timing. Measurements depend on batch size, hardware and load. The logical output byte sum is not peak activation memory; CUDA allocator before/after values are process-wide, not model-specific peak VRAM. Model evaluation flags and hooks are restored, but arbitrary custom forwards can still mutate state or consume RNG; profile trusted code only, never concurrently on a training model. GPU timing is not yet verified on real CUDA hardware by CI.
 
-### Extended operator and CUDA peak profiling (0.7.1.1.1)
+### Extended operator and CUDA peak profiling (0.7.1.1.2)
 
 ```python
 from deepforge.profiler import profile_operators, profile_cuda_peak
@@ -436,10 +436,47 @@ store = load_checkpoint_config("checkpoint.json")
 
 Call save_epoch after each completed epoch. Supply dataset fingerprints, splits, augmentation settings and other provenance in metadata. Inspect verified records with `deepforge checkpoint ROOT RUN_ID`. After a crash, only after confirming all writers have stopped, call `store.recover_abandoned_lock(confirmed_no_writer=True)`. Checksums detect corruption, not malicious modification. Use trusted storage. Exact resume depends on framework, sampler, hardware and deterministic operations; mid-epoch progress is not guaranteed. Studio exports configuration rather than modifying running training scripts.
 
-## Epoch dashboard (0.7.1.1.1)
+## Epoch dashboard (0.7.1.1.2)
 
 The notebook dashboard retains recent epoch cards and plots recorded loss and accuracy. Configure `NotebookMonitor(path, max_epochs=12, theme="jade", show_stages=True, show_charts=True, show_resources=True)`. Themes: jade, light, dark. Overall progress counts training batches only.
 
 After training batches for an epoch, report validation with `monitor.record_stage(epoch, "validation", "running", completed=0, total=len(val_loader))`, update completed counts, call `monitor.epoch_end(epoch, metrics)`, and mark validation completed. Call `view.refresh(force=True)` to display stage transitions. Record hardware samples explicitly with `monitor.record_resources(sample_resources())` from `deepforge.resources`.
 
 Pass `monitor=monitor, refresh=lambda: view.refresh(force=True)` to TorchCheckpoint or attach_yolo_checkpoint to report checkpoint and verification stages. The monitor must already have recorded the corresponding training batches. Saves are synchronous; no byte-level progress is inferred. Disabled or unscheduled saves are marked skipped. GPU memory usage is not GPU compute utilization. Existing callers need not supply these options.
+
+### Fixed notebook header
+
+`NotebookMonitor(path, dashboard_height=480, fixed_header=True, max_epochs=20)` keeps the summary outside the independently scrolling details region and shows the latest 20 reached epochs, newest first, plus the next pending epoch if applicable. Earlier epochs remain in the snapshot and automatic `<snapshot>.epochs.jsonl` log. Set `max_epochs=None` to render all cards. Notebook output replacement may reset scroll position or expanded details; the header remains outside the inner scroll area. The default epoch log appends run start, training epoch, validation, stage and finish events; explicit archive paths retain batch events too.
+
+
+### Interactive PyTorch sessions (0.7.1.1.2)
+
+Install the optional `interactive` extra for notebook widgets. Run
+`setup_panel("config.json")` from `deepforge.notebook_setup` in a separate
+cell and save the configuration before building the session.
+
+```python
+from deepforge.notebook_setup import build_training_session
+monitor, view, checkpoint, session = build_training_session(
+    "config.json", run_id="experiment_001", epochs=50,
+    batches_per_epoch=len(train_loader), model=model, optimizer=optimizer,
+    experiment_metadata={"dataset_fingerprint": dataset_fingerprint},
+)
+session.controls()
+# On a fresh process, explicitly restore a paused session:
+# state = session.restore()
+# start_epoch = state["epoch"] + 1
+# After each epoch's training, validation and scheduler updates:
+# monitor.epoch_end(epoch, {"loss": validation_loss})
+# if session.epoch_boundary(epoch, global_step=global_step):
+#     break
+# checkpoint.save_epoch(epoch, global_step=global_step, metadata=session.metadata)
+```
+
+Record training loss as `loss` and validation loss as `loss` in
+`epoch_end`. Warnings are heuristic, never automatic stopping decisions.
+Cards are chronological, with the latest 20 by default. Earlier records
+remain in the JSONL log. Browser audio autoplay and widget callbacks during
+a blocking training cell are frontend-dependent; use a cooperative loop
+or a supported external control mechanism. The recovery API requires an
+identically configured model and dataset; it does not recreate user code.

@@ -13,13 +13,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class CheckpointPolicy:
-    keep_last: int = 2
+    keep_last: int | None = 2
     max_bytes: int | None = None
     enabled: bool = True
     save_every_epochs: int = 1
 
     def __post_init__(self):
-        if self.keep_last < 2 or self.save_every_epochs < 1:
+        if (self.keep_last is not None and (type(self.keep_last) is not int or self.keep_last < 2)) or self.save_every_epochs < 1:
             raise ValueError("retain at least two checkpoints; interval must be positive")
         if self.max_bytes is not None and self.max_bytes < 1:
             raise ValueError("max_bytes must be positive")

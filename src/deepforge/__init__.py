@@ -1,3 +1,3 @@
 """DeepForge: small, auditable deep learning research utilities."""
 
-__version__ = "0.7.1.1.1"
+__version__ = "0.7.1.1.2"
