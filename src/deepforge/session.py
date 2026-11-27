@@ -13,7 +13,7 @@ class TrainingSession:
         self.root = checkpoint.store.root
         self.recovery = TorchCheckpoint(
             CheckpointStore(self.root, "recovery", CheckpointPolicy()),
-            checkpoint.model, checkpoint.optimizer, **checkpoint.components)
+            checkpoint.model, checkpoint.optimizer, monitor=monitor, refresh=checkpoint.refresh, **checkpoint.components)
         self.target = None
         self.lock = Lock()
         self.state_path = self.root / "session.json"
@@ -71,6 +71,8 @@ class TrainingSession:
         self.monitor.history = snap["history"]
         self.monitor.epoch_history = snap["epoch_history"]
         self.monitor.epoch_records = {int(k): v for k,v in snap["epoch_records"].items()}
+        self.monitor.started -= snap["elapsed_seconds"]
+        self.monitor._append({"event": "resume", "epoch": result["epoch"]})
         self.monitor._publish(force=True)
         atomic_json(self.state_path, {"status": "running", **self.metadata})
         return result
@@ -97,15 +99,16 @@ class TrainingSession:
         """Optional ipywidgets controls; frontend must deliver callbacks."""
         import ipywidgets as w
         from IPython.display import display
-        stop = w.Button(description="Stop after next epoch", button_style="danger")
+        mode = w.Dropdown(options=[("After next epoch",True),("After current epoch",False)],value=True)
+        stop = w.Button(description="Request safe stop", button_style="danger")
         cancel = w.Button(description="Cancel stop")
         label = w.Label(value="Running")
         def request(_):
-            label.value = f"Stop requested after epoch {self.request_stop()}"
+            label.value = f"Stop requested after epoch {self.request_stop(after_next=mode.value)}"
         def reset(_):
             self.cancel_stop()
             label.value = "Running"
         stop.on_click(request)
         cancel.on_click(reset)
-        display(w.VBox([w.HBox([stop, cancel]), label]))
+        display(w.VBox([mode, w.HBox([stop, cancel]), label]))
         return stop, cancel, label
