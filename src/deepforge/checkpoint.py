@@ -106,7 +106,7 @@ class CheckpointStore:
         records = self._records()
         return records[0][1] if records else None
 
-    def save(self, epoch: int, payload: bytes, *, best: bool = False):
+    def save(self, epoch: int, payload: bytes, *, best: bool = False, progress=None):
         if type(epoch) is not int or epoch < 0:
             raise ValueError("invalid epoch")
         if not self.policy.enabled or (epoch % self.policy.save_every_epochs and not best):
@@ -131,7 +131,13 @@ class CheckpointStore:
             fd, name = tempfile.mkstemp(prefix=".pending-", dir=self.root)
             try:
                 with os.fdopen(fd, "wb") as stream:
-                    stream.write(payload)
+                    if progress is None:
+                        stream.write(payload)
+                    else:
+                        total = len(payload)
+                        for offset in range(0, total, 4 * 1024 * 1024):
+                            written = stream.write(payload[offset:offset + 4 * 1024 * 1024])
+                            progress(offset + written, total)
                     stream.flush()
                     os.fsync(stream.fileno())
                 os.replace(name, target)
