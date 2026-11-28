@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from deepforge.checkpoint import atomic_json
-from deepforge.desktop_monitor import DesktopMonitor
+from deepforge.desktop_monitor import DesktopMonitor, model_metadata
 from deepforge.monitor import TrainingMonitor
 from deepforge.resources import sample_resources
 
@@ -22,7 +22,9 @@ def capture(output):
             for stage in ("validation","checkpoint","verification"): m.record_stage(epoch,stage,"completed")
         for batch in range(1,219): m.batch(epoch=3,batch=batch,metrics={"loss":.22,"gradient_norm":2.41})
         m.record_resources(sample_resources())
-        atomic_json(path.parent/"desktop.json",{"run_id":"synthetic-gallery","model":"Demo fixture","dataset":{"name":"Synthetic test observations"},"controls":True,"readiness":{"Configuration":True,"Checkpoint settings":True}})
+        import torch
+        model=torch.nn.Sequential(torch.nn.Linear(8,32),torch.nn.ReLU(),torch.nn.Linear(32,3))
+        atomic_json(path.parent/"desktop.json",{"run_id":"synthetic-gallery",**model_metadata(model),"dataset":{"name":"Synthetic test observations"},"controls":True,"readiness":{"Configuration":True,"Checkpoint settings":True}})
         root=tk.Tk(); app=DesktopMonitor(root,path,interval=10); root.geometry("1440x880+0+0");root.title("DeepForge | SYNTHETIC TEST DATA")
         try:
             root.update();root.update_idletasks()

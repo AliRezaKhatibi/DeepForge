@@ -5,7 +5,7 @@ import pytest
 
 from deepforge.checkpoint import atomic_json
 from deepforge.control import StopControl
-from deepforge.desktop_monitor import DesktopChannel, observations, series_for, launch_desktop, TABS
+from deepforge.desktop_monitor import DesktopChannel, observations, series_for, launch_desktop, export_report, model_metadata, TABS
 from deepforge.monitor import TrainingMonitor
 
 
@@ -44,9 +44,14 @@ def test_desktop_observations_no_future_or_fake_values(tmp_path):
     values,_,health,_,val_epoch=observations(m.snapshot(),{})
     assert health=="Nonfinite metric" and val_epoch==1 and dict(values)["Accuracy"]==.85
     assert series_for(m.snapshot(),"loss")[0][2]==[(1,.5)]
+    export_report(tmp_path/"report.json",m.snapshot())
+    assert json.loads((tmp_path/"report.json").read_text())["epoch"]==2
+    export_report(tmp_path/"report.csv",m.snapshot(),csv_format=True)
+    assert "validation_accuracy" in (tmp_path/"report.csv").read_text()
 
 
 def test_desktop_window_and_tabs(tmp_path):
+    import time
     tk=pytest.importorskip("tkinter")
     from deepforge.desktop_monitor import DesktopMonitor
     try: root=tk.Tk()
@@ -57,9 +62,15 @@ def test_desktop_window_and_tabs(tmp_path):
         m.batch(epoch=1,batch=1,metrics={"loss":.5})
         app=DesktopMonitor(root,m.path,interval=10)
         for size in ("1440x880","720x540"):
-            root.geometry(size); root.update_idletasks()
+            root.geometry(size)
+            deadline=time.monotonic()+3
+            while time.monotonic()<deadline:
+                root.update()
+                if app.canvas.winfo_width()>=300 and root.winfo_viewable():break
+                time.sleep(.02)
+            assert app.canvas.winfo_width()>=300, "Native canvas was not laid out"
             for name in TABS:
-                app.nav[name].invoke(); root.update_idletasks()
+                app.nav[name].invoke(); root.update()
                 assert app.tab==name and app.canvas.find_all()
                 assert app.canvas.bbox("all")[2] <= app.canvas.winfo_width()+4
         app.cycle_theme(); root.update_idletasks(); assert app.theme=="dark"
@@ -89,6 +100,7 @@ def test_desktop_session_real_checkpoint(tmp_path,monkeypatch):
         session=TrainingSession(monitor,TorchCheckpoint(store,model,opt,scheduler=scheduler,monitor=monitor),{"dataset":"fixture"})
         return session,model,opt,scheduler
     s,model,opt,sch=make();s.open_desktop(allow_resume=True); c=DesktopChannel(s.monitor.path)
+    assert c.metadata['parameters']==3 and c.metadata['layers'][0]['type']=='Linear'
     def step(epoch):
         opt.zero_grad();loss=model(torch.ones(1,2)).square().mean();loss.backward();opt.step();sch.step()
         s.monitor.batch(epoch=epoch,batch=1,metrics={"loss":loss.item()});s.monitor.epoch_end(epoch,{"loss":loss.item()})

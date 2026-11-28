@@ -61,19 +61,12 @@ class TrainingSession:
 
     def open_desktop(self, *, theme="jade", interval=0.5, allow_resume=False, readiness=None):
         """Open the optional independent desktop monitor using this Python environment."""
-        from .desktop_monitor import launch_desktop
+        from .desktop_monitor import launch_desktop, model_metadata
         if self.desktop_process is not None and self.desktop_process.poll() is None:
             return self.desktop_process
         settings = dict(self.desktop_metadata)
         settings.setdefault("run_id", self.root.name)
-        settings.setdefault("model", type(self.recovery.model).__name__)
-        try:
-            params=list(self.recovery.model.parameters())
-            settings.update(parameters=sum(p.numel() for p in params),
-                            trainable_parameters=sum(p.numel() for p in params if p.requires_grad),
-                            device=str(params[0].device) if params else None)
-        except (AttributeError, ValueError, RuntimeError):
-            pass  # Lazy/custom model: metadata is optional, never block training.
+        settings.update(model_metadata(self.recovery.model))
         settings["readiness"] = {**settings.get("readiness", {}), **(readiness or {})}
         settings["controls"] = True
         settings["allow_resume"] = bool(allow_resume)

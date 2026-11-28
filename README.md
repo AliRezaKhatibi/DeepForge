@@ -28,6 +28,8 @@ data, not estimates of unreported measurements. Validation cards identify their
 last recorded epoch. The default jade palette is based on the approved reference;
 the transparent SVG/PNG/ICO symbol is a vector reconstruction, not an original
 vector master.
+The Model view lists up to 100 registered modules and direct parameter counts;
+Reports exports the recorded snapshot as JSON or completed epoch data as CSV.
 
 In a local VS Code notebook, use the established `build_training_session(...)` and
 `NotebookMonitor` workflow exactly as before. To additionally open the advanced

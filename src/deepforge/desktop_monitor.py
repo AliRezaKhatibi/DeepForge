@@ -82,6 +82,8 @@ class DesktopChannel:
         if action == "resume":
             if data.get("status") != "paused" or not self.metadata.get("allow_resume"):
                 raise RuntimeError("Resume is not enabled for this paused training session.")
+            if data.get("epoch",0) >= data.get("epochs",0):
+                raise RuntimeError("No training epochs remain.")
             atomic_json(self.root / "resume-request.json", {"requested": True})
             return
         if data.get("status") != "running":
@@ -98,6 +100,8 @@ class DesktopChannel:
 
     def feedback(self, data):
         if data.get("status") == "paused":
+            if data.get("epoch",0) >= data.get("epochs",0):
+                return "Paused at the final epoch · no training epochs remain."
             if (self.root / "resume-request.json").exists():
                 return "Resume requested · awaiting the caller's restore and training loop."
             if self.metadata.get("allow_resume"):
@@ -147,7 +151,37 @@ def series_for(data, metric):
     records = data.get("epoch_records", {})
     return [(name, color, sorted((int(e), r[side][metric]) for e, r in records.items()
                    if numeric(r.get(side, {}).get(metric)))[-500:])
-            for name, color, side in (("Train", "#39b9f0", "training"), ("Validation", "#f0a44b", "validation"))]
+            for name, color, side in (("Train", "#39b9f0", "training"), ("Validation", "#20e6ae" if metric=="accuracy" else "#f0a44b", "validation"))]
+
+
+def model_metadata(model):
+    """Inspect registered parameters/modules without running a forward pass."""
+    from itertools import islice
+    result={"model":type(model).__name__}
+    try:
+        params=list(model.parameters())
+        result.update(parameters=sum(p.numel() for p in params),
+                      trainable_parameters=sum(p.numel() for p in params if p.requires_grad),
+                      device=str(params[0].device) if params else None)
+        result["layers"]=[{"name":name or "(root)","type":type(layer).__name__,
+                           "parameters":sum(p.numel() for p in layer.parameters(recurse=False))}
+                          for name,layer in islice(model.named_modules(),100)]
+    except (AttributeError,ValueError,RuntimeError):
+        pass
+    return result
+
+
+def export_report(path, data, *, csv_format=False):
+    """Export only the recorded snapshot or the recorded epoch metrics."""
+    if not csv_format:
+        atomic_json(Path(path),data);return
+    import csv
+    records=data.get("epoch_records",{}); fields=sorted({f"{side}_{key}" for record in records.values()
+        for side in ("training","validation") for key in record.get(side,{})})
+    with Path(path).open("w",newline="",encoding="utf-8") as stream:
+        writer=csv.DictWriter(stream,fieldnames=["epoch",*fields]);writer.writeheader()
+        for epoch,record in sorted(records.items(),key=lambda item:int(item[0])):
+            writer.writerow({"epoch":epoch,**{f"{side}_{key}":value for side in ("training","validation") for key,value in record.get(side,{}).items()}})
 
 
 class DesktopMonitor:
@@ -212,6 +246,7 @@ class DesktopMonitor:
         self.cancel=self._button(buttons,"Cancel Stop",lambda:self.command("cancel")); self.cancel.pack(side="right",padx=3)
         self.resume=self._button(buttons,"Resume",lambda:self.command("resume")); self.resume.pack(side="right",padx=3)
         tk.Checkbutton(buttons,text="After next epoch",variable=self.after_next,bg=self.panel,fg=self.fg,selectcolor=self.panel2,activebackground=self.panel,activeforeground=self.fg).pack(side="right",padx=3)
+        self.export_json=self._button(buttons,"Export JSON",lambda:self.export(False)); self.export_csv=self._button(buttons,"Export CSV",lambda:self.export(True))
         frame=tk.Frame(self.root,bg=self.bg); frame.pack(fill="both",expand=True,padx=14)
         self.canvas=tk.Canvas(frame,bg=self.bg,highlightthickness=0); self.canvas.pack(side="left",fill="both",expand=True)
         scrollbar=tk.Scrollbar(frame,orient="vertical",command=self.canvas.yview); scrollbar.pack(side="right",fill="y")
@@ -235,8 +270,21 @@ class DesktopMonitor:
 
     def select(self,tab):
         self.tab=tab
-        for name,b in self.nav.items(): b.configure(bg=self.accent if name==tab else self.panel2,fg=self.bg if name==tab else self.fg)
+        for name,b in self.nav.items(): b.configure(bg=("#0b503e" if self.theme=="jade" else self.accent) if name==tab else self.panel2,fg=(self.accent if self.theme=="jade" else self.bg) if name==tab else self.fg,highlightbackground=self.accent if name==tab else self.border)
+        for button in (self.export_json,self.export_csv):
+            if tab=="Reports":button.pack(side="left",padx=3)
+            else:button.pack_forget()
         self.draw(); self.canvas.yview_moveto(0)
+
+    def export(self,csv_format):
+        from tkinter import filedialog,messagebox
+        if not self.data:return
+        ext=".csv" if csv_format else ".json"
+        path=filedialog.asksaveasfilename(parent=self.root,defaultextension=ext,initialfile="deepforge-report"+ext,filetypes=[("CSV" if csv_format else "JSON","*"+ext)])
+        if not path:return
+        try:export_report(path,self.data,csv_format=csv_format)
+        except OSError as exc:messagebox.showerror("Export failed",str(exc),parent=self.root)
+        else:messagebox.showinfo("Export complete",f"Saved {path}",parent=self.root)
 
     def command(self,action):
         from tkinter import messagebox
@@ -260,12 +308,12 @@ class DesktopMonitor:
 
     def update_footer(self):
         data=self.data; meta=self.metadata
-        self.badge.configure(text=str(data.get("status","waiting")).upper(),fg=self.accent if data.get("status")=="running" else self.fg)
+        self.badge.configure(text=f"{str(data.get('status','waiting')).upper()}  ·  E{data.get('epoch',0)}/{data.get('epochs',0)}  ·  {data.get('progress',0):.1%}",fg=self.accent if data.get("status")=="running" else self.fg)
         self.info.configure(text=f"Run: {meta.get('run_id',self.channel.path.stem)}    |    Model: {display_value(meta.get('model'))}    |    Params: {display_value(meta.get('parameters'))}    |    Device: {display_value(meta.get('device'))}")
         self.feedback.configure(text=self.channel.feedback(data))
         state="normal" if meta.get("controls") and data.get("status")=="running" else "disabled"
         for b in (self.stop,self.cancel,self.save): b.configure(state=state)
-        self.resume.configure(state="normal" if meta.get("allow_resume") and data.get("status")=="paused" else "disabled")
+        self.resume.configure(state="normal" if meta.get("allow_resume") and data.get("status")=="paused" and data.get("epoch",0)<data.get("epochs",0) else "disabled")
 
     def text(self,x,y,label,*,size=11,color=None,bold=False,anchor="nw",width=None):
         return self.canvas.create_text(x,y,text=str(label),fill=color or self.fg,font=("TkDefaultFont",size,"bold" if bold else "normal"),anchor=anchor,width=width or 0)
@@ -301,7 +349,7 @@ class DesktopMonitor:
             if len(coords)>1:self.canvas.create_line(*[v for pt in coords for v in pt],fill=color,width=2.5)
             for cx,cy in coords:self.canvas.create_oval(cx-3,cy-3,cx+3,cy+3,fill=color,outline=color)
         self.text(l,bottom+8,f"E{a}",size=8,color=self.muted); self.text(r,bottom+8,f"E{b}",size=8,color=self.muted,anchor="ne")
-        self.text(x+14,y+37,"● Train",size=9,color="#39b9f0"); self.text(x+100,y+37,"● Validation",size=9,color="#f0a44b")
+        self.text(x+14,y+37,"● Train",size=9,color="#39b9f0"); self.text(x+100,y+37,"● Validation",size=9,color="#20e6ae" if metric=="accuracy" else "#f0a44b")
 
     def hardware(self,x,y,w):
         resources=self.data.get("resources",{}); self.card(x,y,w,302,"Hardware Monitor")
@@ -320,11 +368,13 @@ class DesktopMonitor:
         return y+314
 
     def health(self,x,y,w,health,color):
-        self.card(x,y,w,170,"Training Health")
-        self.text(x+12,y+42,health,color=self.accent if health=="No trend warning" else ("#f3b74a" if health=="Watch" else color),bold=True,width=w-24)
-        self.text(x+12,y+90,"Gradient norm: "+display_value(self.data.get("metrics",{}).get("gradient_norm")),size=10,width=w-24)
-        self.text(x+12,y+126,"Warnings use recorded observations only.",size=9,color=self.muted,width=w-24)
-        return y+182
+        self.card(x,y,w,195,"Training Health")
+        metrics=self.data.get("metrics",{});finite=bool(metrics) and all(numeric(v) for v in metrics.values());gradient=metrics.get("gradient_norm")
+        self.text(x+12,y+40,"✓ Current metrics finite" if finite else "Current metrics: nonfinite" if metrics else "Current metrics: unassessed",size=10,color=self.accent if finite else self.muted if not metrics else "#ef777b",width=w-24)
+        self.text(x+12,y+68,"Gradient norm: "+display_value(gradient),size=10,width=w-24)
+        self.text(x+12,y+94,health,color=self.accent if health=="No trend warning" else ("#f3b74a" if health=="Watch" else color),bold=True,width=w-24)
+        self.text(x+12,y+146,"Loss trend: last recorded validation. Warnings are not a diagnosis.",size=9,color=self.muted,width=w-24)
+        return y+207
 
     def overview(self,x,y,w,values,val_epoch):
         data=self.data; self.card(x,y,w,185,"Epoch {} / {}".format(data.get("epoch",0),data.get("epochs",0)))
@@ -354,14 +404,16 @@ class DesktopMonitor:
         self.chart(x,yy,w,205,"loss"); self.chart(x,yy+213,w,205,"accuracy"); return yy+428
 
     def checklist(self,x,y,w,checks):
-        self.card(x,y,w,452,"Training Checklist")
+        self.card(x,y,w,477,"Training Checklist")
         for i,name in enumerate(CHECKS):
             yy=y+50+i*46; yes=checks.get(name) is True
             self.text(x+12,yy,"✓" if yes else "○",color=self.accent if yes else self.muted,bold=True,size=13)
             self.text(x+34,yy,name,size=10,width=w-45)
             self.text(x+34,yy+20,"Verified / reported" if yes else "Unassessed",size=8,color=self.muted)
-        self.text(x+12,y+425,"Ready to Train" if all(checks.get(n) is True for n in CHECKS) else "Preflight not fully assessed",size=10,bold=True,color=self.accent if all(checks.get(n) is True for n in CHECKS) else self.muted,width=w-24)
-        return y+462
+        ready=all(checks.get(n) is True for n in CHECKS)
+        self.rounded(x+12,y+420,w-24,45,outline=self.accent if ready else self.border,fill=self.panel2,r=8)
+        self.text(x+w/2,y+442,"✓ Ready to Train" if ready else "Preflight not fully assessed",size=9,bold=True,color=self.accent if ready else self.muted,width=w-36,anchor="center")
+        return y+487
 
     def list_card(self,x,y,w,title,mapping):
         rows=list(mapping.items()) if mapping else [("Status","Not reported")]
@@ -387,14 +439,21 @@ class DesktopMonitor:
             self.card(x,y,w,89,f"Epoch {epoch} / {self.data['epochs']}")
             self.text(x+w-12,y+13,f"{done} / {self.data['batches_per_epoch']} batches",anchor="ne",size=10,color=self.muted)
             self.meter(x+12,y+38,w-24,100*done/self.data['batches_per_epoch'])
-            stages=row.get("stages",{}); stages_text="  ·  ".join(f"{s.title()}: {stages.get(s,{}).get('status','recorded' if s=='validation' and 'validation' in row else 'not reported')}" for s in ("validation","checkpoint","verification"))
+            stages=row.get("stages",{})
+            def stage_label(s):
+                item=stages.get(s,{}); label=item.get("status","recorded" if s=="validation" and "validation" in row else "not reported")
+                if item.get("total"):label+=f" ({item['completed']}/{item['total']})"
+                return f"{s.title()}: {label}"
+            stages_text="  ·  ".join(stage_label(s) for s in ("validation","checkpoint","verification"))
             self.text(x+12,y+58,stages_text,size=9,color=self.muted,width=w-24); y+=97
         return y
 
     def set_history(self,value): self.history_limit=value; self.draw()
 
     def draw(self):
-        c=self.canvas; previous=c.yview(); old_top=previous[0] if previous else 0; near_end=bool(previous and previous[1]>=.98 and previous[0]>0)
+        c=self.canvas
+        if c.winfo_width()<300:return  # Wait for the native window manager to map/size the canvas.
+        previous=c.yview(); old_top=previous[0] if previous else 0; near_end=bool(previous and previous[1]>=.98 and previous[0]>0)
         c.delete("all"); w=max(300,c.winfo_width()-8); y=5
         if not self.data: self.text(16,15,"Waiting for a DeepForge snapshot…"); return
         data=self.data; meta=self.metadata; values,checks,health,color,val_epoch=observations(data,meta)
@@ -411,6 +470,8 @@ class DesktopMonitor:
             y=self.hardware(0,y,w); y=self.list_card(0,y,w,"Resource readings",data.get("resources",{}))
         elif self.tab=="Model":
             y=self.list_card(0,y,w,"Model information",{k:meta.get(k) for k in ("model","parameters","trainable_parameters","device")})
+            layers=meta.get("layers",[])
+            y=self.list_card(0,y,w,"Registered architecture · up to 100 modules",{layer['name']:f"{layer['type']}  |  {layer['parameters']:,} direct parameters" for layer in layers})
         elif self.tab=="Dataset":
             y=self.list_card(0,y,w,"Dataset metadata",meta.get("dataset",{})); y=self.list_card(0,y,w,"Latest batch label distribution",data.get("batch_distribution",{}).get("counts",{}))
         elif self.tab=="Reports":
