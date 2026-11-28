@@ -25,7 +25,7 @@ def test_probability_report():
     result=chart_svg({'type':'probability','title':'Precision–recall','x':[0,1],'y':[1,.5],'xlabel':'Recall','baseline':.5})
     assert 'Precision–recall' in result and 'Recall' in result and 'stroke-dasharray' in result
 
-def test_jade_interaction():
+def test_jade_interaction(monkeypatch):
     tk=pytest.importorskip('tkinter')
     from deepforge.gui import Studio
     try: root=tk.Tk()
@@ -51,5 +51,15 @@ def test_jade_interaction():
         app.find_query.set('');assert app.table.get_children()
         for mode in ('ROC','Precision–recall','Calibration'):
             app.chart_mode.set(mode);app.draw();root.update();assert app.active_chart() is not None
+        # Simulate older Windows Tk builds rejecting the packaged About PNG.
+        native_photo = tk.PhotoImage
+        rejected = []
+        def reject_about_png(*args, **kwargs):
+            if Path(str(kwargs.get("file", ""))).name == "xvarna_about.png":
+                rejected.append("xvarna_about.png")
+                raise tk.TclError("Simulated PNG decoder failure")
+            return native_photo(*args, **kwargs)
+        monkeypatch.setattr(tk, "PhotoImage", reject_about_png)
         dialog=app.help();root.update();assert dialog.winfo_exists();dialog.destroy()
+        assert rejected == ["xvarna_about.png"]
     finally:root.destroy()
