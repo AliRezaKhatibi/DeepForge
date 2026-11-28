@@ -20,6 +20,35 @@ DeepForge Studio is an early-stage open-source project for research and developm
 
 ## Install and launch
 
+### Choose the interface
+
+All four interfaces coexist; the research Studio is not replaced by the new monitor.
+
+| Interface | Where it runs | How to launch |
+| --- | --- | --- |
+| Research Studio (12 data / evaluation workspaces) | Local Windows, Linux or macOS with Tkinter | `deepforge-studio` or `python -m deepforge.gui` |
+| Inline notebook dashboard | Google Colab, Kaggle, VS Code and local Jupyter kernels | `NotebookMonitor(live_json_path)`, then `view.refresh()` from the caller's training loop |
+| Advanced native training monitor | Local scripts/notebooks with a graphical display and Tkinter | `session.open_desktop()` for a connected training session; `deepforge-monitor PATH_TO_RUN/live.json` for read-only viewing |
+| Legacy live training viewer | Local graphical desktop | `deepforge-live PATH_TO_RUN/live.json` |
+| Command-line / headless analysis | Terminal, CI, server | `deepforge --help` |
+
+**Installed package vs. source checkout.** Use the distribution name `deepforge-research-toolkit`. For an exact-version PyPI install, verify that the documented release is listed on PyPI first. If it is not yet available, clone this repository and install from its root:
+
+```bash
+git clone https://github.com/AliRezaKhatibi/DeepForge.git
+cd DeepForge
+python -m pip install -e ".[images,notebook,resources,interactive]"
+```
+
+PyTorch is an optional dependency: use its official installation guide for the appropriate hardware. With a notebook, install in the selected kernel and restart after updating already imported dependencies.
+
+```python
+from importlib.metadata import version
+print(version("deepforge-research-toolkit"))
+```
+
+Check Tkinter locally with `python -m tkinter`; hosted Colab/Kaggle should use the inline dashboard, not a separate Tk window. For a full walkthrough of setup, MNIST training, stopping, checkpointing and resuming, see [Complete training quickstart](#complete-training-quickstart-colab-kaggle-jupyter-and-vs-code).
+
 ### Advanced desktop training monitor (0.7.1.1.3)
 
 The native desktop monitor is an **optional independent window** for local scripts
@@ -133,6 +162,54 @@ In VS Code, install the Python and Jupyter extensions, select your Python enviro
 Open [the synthetic notebook example](examples/notebook_compatibility.ipynb) ([Colab](https://colab.research.google.com/github/AliRezaKhatibi/DeepForge/blob/main/examples/notebook_compatibility.ipynb)). Install the package before running its cells. The new `NotebookMonitor(path, interval=1.0)` uses an IPython display handle; call `refresh()` after recording batches and `refresh(force=True)` after finishing. Set the TrainingMonitor publish interval to suit the refresh interval. No Tk window, server or background thread is required. Colab files are ephemeral unless explicitly copied to persistent storage. VS Code scripts can continue using the CLI and desktop viewer.
 
 CI executes the notebook in standard headless Jupyter kernels on Windows and Linux. This does not establish actual hosted Colab or VS Code frontend rendering compatibility. GPU hardware validation is deferred.
+
+## Runnable notebook examples and visual gallery
+
+Open each notebook from GitHub or in Colab. In VS Code, open its `.ipynb` file, select the Python/Jupyter kernel in which DeepForge is installed, and run the cells in order. Installation snippets and environment notes are included.
+
+| Notebook / example | What it demonstrates | Open |
+| --- | --- | --- |
+| Notebook smoke demo | Three recorded demonstration batches; no model training | [Notebook](examples/notebook_compatibility.ipynb) · [Colab](https://colab.research.google.com/github/AliRezaKhatibi/DeepForge/blob/main/examples/notebook_compatibility.ipynb) |
+| NumPy neural-network training | Real CPU training, loss, accuracy, epoch validation and inline monitor; no PyTorch or data download required | [Notebook](examples/numpy_training_monitor.ipynb) · [Colab](https://colab.research.google.com/github/AliRezaKhatibi/DeepForge/blob/main/examples/numpy_training_monitor.ipynb) |
+| PyTorch training and recovery | Real synthetic classification, optional notebook controls/native monitor, safe pause and explicit checkpoint restore | [Notebook](examples/pytorch_session_monitor.ipynb) · [Colab](https://colab.research.google.com/github/AliRezaKhatibi/DeepForge/blob/main/examples/pytorch_session_monitor.ipynb) |
+| Local native desktop training | Standalone PyTorch script with the independent advanced window | [Python example](examples/desktop_training.py) |
+| Complete MNIST walkthrough | Dataset download, split, training, validation and recovery cells | [README guide](#complete-training-quickstart-colab-kaggle-jupyter-and-vs-code) |
+
+The NumPy notebook was executed with the 0.7.1.1.3 source: 20 epochs, 320 optimizer updates, actual training/validation measurements, initial validation accuracy 56.25%, final validation accuracy 95.31% and final validation loss 0.2532. These are synthetic-data demonstration results, not a benchmark. The PyTorch notebook was syntax-checked and its API calls checked against the source; full execution requires a PyTorch-equipped kernel.
+
+### Inline training dashboard (Colab / VS Code / Jupyter)
+
+The inline interface is rendered **inside the notebook output cell**. The same HTML renderer is used in compatible IPython notebooks. This screenshot shows the repository's earlier CI browser rendering of the notebook interface with synthetic demo observations, not a captured hosted Colab or VS Code session.
+
+![Inline notebook monitor — browser rendering of the notebook output](docs/images/live-notebook.png)
+
+For a current real-training example, download and open these exact HTML snapshots produced by the executed NumPy notebook. They are self-contained examples of what the renderer displays at a running and completed state:
+
+- [During training (epoch 8, batch 8)](docs/images/notebook-training-in-progress.html)
+- [Completed training (epoch 20)](docs/images/notebook-training-completed.html)
+
+The following chart plots the **recorded** training and validation values from that same run; it is not a screenshot or fabricated model benchmark.
+
+![Measured training and validation loss and accuracy from the NumPy example](docs/images/notebook-real-training-curves.png)
+
+### Local graphical interfaces during training and research
+
+From a local VS Code notebook or Python script, optionally open `session.open_desktop()` after constructing the training session. The native window is independent of the notebook output. Open an existing snapshot with:
+
+```bash
+deepforge-monitor "PATH_TO_RUN/live.json"
+```
+
+![Actual advanced native training monitor, captured in Linux/Xvfb](docs/images/desktop-training.png)
+
+![Actual native metrics view, captured in Linux/Xvfb](docs/images/desktop-metrics.png)
+
+For research/data inspection, open `deepforge-studio`:
+
+![Actual research Studio dashboard](docs/images/dashboard.png)
+
+Native screenshots come from the running application's existing CI gallery using synthetic demonstration observations. Hosted Colab and VS Code frontend rendering, widget callbacks and GPU behavior still require environment-specific verification; these screenshots do not claim to capture those frontends.
+
 
 ## Research workspaces
 

@@ -476,7 +476,7 @@ class Studio:
     def help(self):
         dialog=tk.Toplevel(self.root); dialog.title('About DeepForge Studio'); dialog.configure(bg=PANEL); dialog.transient(self.root); dialog.resizable(False,False)
         hero=tk.Frame(dialog,bg=SIDEBAR,padx=28,pady=20); hero.pack(fill='x')
-        logo=tk.PhotoImage(file=str(ASSETS/'xvarna_about.png')); image=tk.Label(hero,image=logo,bg=SIDEBAR); image.image=logo; image.pack()
+        logo=self.load_brand_image('xvarna_about.png'); image=tk.Label(hero,image=logo,bg=SIDEBAR); image.image=logo; image.pack()
         body=tk.Frame(dialog,bg=PANEL,padx=24,pady=18); body.pack(fill='both',expand=True)
         self.label(body,'DeepForge Studio',22,INK,PANEL,True).pack(anchor='w')
         self.label(body,f'Professional Edition  /  v{__version__}',10,GOLD,PANEL,True).pack(anchor='w',pady=(4,10))
