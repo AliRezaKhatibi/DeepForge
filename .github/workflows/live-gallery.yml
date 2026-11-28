@@ -28,6 +28,7 @@ jobs:
       - run: python -c "import tkinter; print(tkinter.TkVersion)"
       - run: xvfb-run -a -s '-screen 0 1280x900x24' python scripts/capture-live-gallery.py --output gallery
       - run: xvfb-run -a -s '-screen 0 1440x950x24' python scripts/capture-profiler-gallery.py --output gallery
+      - run: xvfb-run -a -s '-screen 0 1480x960x24' python scripts/capture-desktop-monitor.py --output gallery
       - name: Capture notebook HTML in browser
         run: |
           google-chrome --headless --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1000,900 --screenshot="$PWD/gallery/live-notebook.png" "file://$PWD/gallery/live-notebook.html"

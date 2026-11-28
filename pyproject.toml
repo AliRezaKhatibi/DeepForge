@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepforge-research-toolkit"
-version = "0.7.1.1.2"
+version = "0.7.1.1.3"
 description = "Local-first deep learning research studio and dataset validation toolkit"
 authors = [{name = "Alireza Khatibi"}]
 readme = "README.md"
@@ -25,6 +25,7 @@ interactive = ["ipython>=7.34", "ipywidgets>=8"]
 deepforge = "deepforge.cli:main"
 deepforge-studio = "deepforge.gui:main"
 deepforge-live = "deepforge.live_view:main"
+deepforge-monitor = "deepforge.desktop_monitor:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -34,4 +35,4 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-deepforge = ["assets/*.png", "samples/*.csv", "samples/runs/*.csv", "samples/dataset/*/*/*.png", "samples/yolo/images/*/*.png", "samples/yolo/labels/*/*.txt"]
+deepforge = ["assets/*.png", "assets/*.svg", "assets/*.ico", "samples/*.csv", "samples/runs/*.csv", "samples/dataset/*/*/*.png", "samples/yolo/images/*/*.png", "samples/yolo/labels/*/*.txt"]

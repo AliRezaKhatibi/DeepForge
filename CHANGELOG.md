@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1.1.3 - Advanced desktop monitoring
+
+- Added the optional independent native training monitor for local VS Code scripts and notebooks, with six English views, live metrics, stage history, hardware readings and health warnings.
+- Added cooperative desktop stop, cancellation, manual checkpoint and opt-in resume request controls; the caller retains ownership of training and recovery.
+- Reconstructed the transparent DeepForge symbol from the approved raster reference; bundled SVG, PNG and ICO assets.
+- Preserved the existing inline Colab/Jupyter monitor, legacy desktop viewer, research workspaces and APIs.
+
 ## 0.7.1 - Profiler refinement candidate
 
 - Added independent PyTorch operator FLOP estimates and an explicitly opt-in CUDA allocator peak measurement.

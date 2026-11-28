@@ -48,7 +48,7 @@ class Studio:
         self.configure_style()
         self.side = side = tk.Frame(root, bg=SIDEBAR, width=248); side.pack(side='left', fill='y'); side.pack_propagate(False)
         self.logo = self.load_brand_image('xvarna_sidebar.png')
-        self.app_icon = self.load_brand_image('icon.png')
+        self.app_icon = self.load_brand_image('deepforge.png')
         root.iconphoto(True, self.app_icon)
         brand = tk.Frame(side, bg=SIDEBAR); brand.pack(fill='x', padx=20, pady=(16,10))
         tk.Label(brand,image=self.logo,bg=SIDEBAR).pack(anchor='w')
