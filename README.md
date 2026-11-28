@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/deepforge/assets/deepforge.svg" alt="DeepForge official symbol" width="100" />
+  <img src="https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/src/deepforge/assets/deepforge.png" alt="DeepForge official symbol" width="100" />
   <h1>DeepForge Studio</h1>
   <p><strong>Professional Research Toolkit · Jade Edition</strong></p>
   <p>Created by <strong>Alireza Khatibi</strong> · XVARNA</p>
@@ -12,9 +12,11 @@
 
 DeepForge is a local-first research toolkit for deep learning and computer vision. It brings dataset quality checks, leakage audits, YOLO label validation, experiment diagnostics, classification evaluation, model inspection, and reproducibility reporting into one Python package with a desktop interface and a scriptable command-line API.
 
-DeepForge Studio is an early-stage open-source project for research and development, not a clinically validated product or a certified production service. Version 0.7.1.1.3 is prepared for release; the previous 0.7.1.1.2 distribution remains on PyPI until publication is approved.
+DeepForge Studio is an early-stage open-source project for research and development, not a clinically validated product or a certified production service. This documentation targets version 0.7.1.1.3. See [PyPI](https://pypi.org/project/deepforge-research-toolkit/) for available distributions.
 
-![DeepForge Studio research dashboard](docs/images/dashboard.png)
+![DeepForge 0.7.1.1.3 advanced desktop training monitor](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-training.png)
+
+*Actual native desktop window captured in the Linux/Xvfb CI gallery. Training metrics are synthetic demonstration observations, not a model benchmark; hardware readings reflect the capture environment.*
 
 ## Install and launch
 
@@ -30,6 +32,37 @@ the transparent SVG/PNG/ICO symbol is a vector reconstruction, not an original
 vector master.
 The Model view lists up to 100 registered modules and direct parameter counts;
 Reports exports the recorded snapshot as JSON or completed epoch data as CSV.
+
+<details>
+<summary>Explore all six native monitoring views</summary>
+
+**Training** — progress, validation metrics, checklist, resources and training health.
+
+![Training view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-training.png)
+
+**Metrics** — recorded training and validation observations, with epoch charts.
+
+![Metrics view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-metrics.png)
+
+**Hardware** — available CPU, RAM, GPU and VRAM readings.
+
+![Hardware view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-hardware.png)
+
+**Model** — registered module inventory and parameter counts.
+
+![Model view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-model.png)
+
+**Dataset** — caller-supplied metadata and recorded batch distribution.
+
+![Dataset view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-dataset.png)
+
+**Reports** — recorded artifacts, diagnostics and JSON/CSV exports.
+
+![Reports view](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/desktop-reports.png)
+
+All screenshots are from the actual native window in the [verified gallery run](https://github.com/AliRezaKhatibi/DeepForge/actions/runs/46085808783). Synthetic metric values are not evidence of model performance.
+
+</details>
 
 In a local VS Code notebook, use the established `build_training_session(...)` and
 `NotebookMonitor` workflow exactly as before. To additionally open the advanced
@@ -92,7 +125,7 @@ The Windows launch scripts have been inspected but not run on Windows in the rel
 In Colab, install into the active kernel without upgrading its preinstalled IPython:
 
 ```python
-%pip install deepforge-research-toolkit==0.7.1.1.2
+%pip install deepforge-research-toolkit==0.7.1.1.3
 ```
 
 In VS Code, install the Python and Jupyter extensions, select your Python environment as the notebook kernel, and run `%pip install -e ".[notebook]"` from the repository root in that kernel. Restart the kernel if upgrading an already imported package.
@@ -120,6 +153,8 @@ CI executes the notebook in standard headless Jupyter kernels on Windows and Lin
 
 ### Studio features
 
+![DeepForge Studio research dashboard](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/dashboard.png)
+
 - A navigable research dashboard, 12 independent workspaces, with a jade, cream and gold visual identity, collapsible sidebar and searchable navigation. Compact windows automatically collapse the input panel after analysis to leave room for the chart.
 - Workspace input values are retained during the session. Search findings, copy individual rows, and hover over plotted points for precise values.
 - Explore binary decision thresholds interactively with live precision, recall and F1 previews; Apply explicitly recomputes the report. Threshold selection belongs on validation data, not the final test set.
@@ -130,24 +165,24 @@ CI executes the notebook in standard headless Jupyter kernels on Windows and Lin
 - Nine workspaces have bundled, clearly synthetic demo inputs. Demo data intentionally includes leakage and label issues to exercise the audits.
 - No account, cloud service or telemetry is required. Input analyses are read-only, and report exports are written to a user-selected output path.
 
-![Training analyzer with validation and training loss](docs/images/training.png)
+![Training analyzer with validation and training loss](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/training.png)
 
-![Binary score evaluation with ROC visualization](docs/images/scores.png)
+![Binary score evaluation with ROC visualization](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/scores.png)
 
-![Classification evaluator with confusion matrix](docs/images/metrics.png)
+![Classification evaluator with confusion matrix](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/metrics.png)
 
 <details>
 <summary>Explore more real application screenshots</summary>
 
-![Calibration](docs/images/calibration.png)
-![Experiment comparison](docs/images/compare.png)
-![Group leakage](docs/images/groups.png)
-![YOLO label audit](docs/images/yolo.png)
-![Searchable findings](docs/images/findings.png)
-![Compact workspace](docs/images/compact.png)
-![Compact binary evaluation](docs/images/compact_scores.png)
-![Focus mode](docs/images/focus.png)
-![About and credits](docs/images/about.png)
+![Calibration](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/calibration.png)
+![Experiment comparison](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/compare.png)
+![Group leakage](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/groups.png)
+![YOLO label audit](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/yolo.png)
+![Searchable findings](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/findings.png)
+![Compact workspace](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/compact.png)
+![Compact binary evaluation](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/compact_scores.png)
+![Focus mode](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/focus.png)
+![About and credits](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/about.png)
 
 </details>
 
@@ -355,15 +390,15 @@ In a Jupyter notebook, use `from deepforge.notebook import display_snapshot` and
 
 The following screenshots were captured from the running desktop monitor under Linux/Xvfb using **synthetic demo metrics**, not a trained-model benchmark. CPU/RAM figures reflect the capture environment.
 
-![Live training monitor showing batch and epoch progress, ETA, loss and output metadata](docs/images/live-training.png)
+![Live training monitor showing batch and epoch progress, ETA, loss and output metadata](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/live-training.png)
 
-![Live training monitor with box loss selected](docs/images/live-box-loss.png)
+![Live training monitor with box loss selected](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/live-box-loss.png)
 
 The following image shows the actual notebook renderer output opened in a browser, not a hosted Jupyter session.
 
-![Browser-rendered notebook snapshot](docs/images/live-notebook.png)
+![Browser-rendered notebook snapshot](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/live-notebook.png)
 
-[Open the notebook HTML example](docs/images/live-notebook.html).
+[Open the notebook HTML example](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/live-notebook.html).
 
 ### Reproducing live monitor screenshots
 
@@ -409,11 +444,11 @@ The explicitly opt-in CUDA peak function resets process-wide allocator peak coun
 
 The Model Inspector now accepts batch size, charts per-layer estimated MACs, and shows compact input/output shape rows in Findings. The following images were captured from the running Model Inspector under Linux/Xvfb using a synthetic, randomly initialized MLP (64 → 128 → 10, batch size 8). The latency values describe the CI capture machine and are not a hardware benchmark.
 
-![Actual Model Inspector showing per-layer estimated MACs](docs/images/architecture-profiler.png)
+![Actual Model Inspector showing per-layer estimated MACs](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/architecture-profiler.png)
 
-![Actual Model Inspector showing executed layers and tensor shapes](docs/images/architecture-layers.png)
+![Actual Model Inspector showing executed layers and tensor shapes](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/architecture-layers.png)
 
-[Open the matching HTML architecture report](docs/images/architecture-report.html). The gallery workflow reproduces these screenshots and the report.
+[Open the matching HTML architecture report](https://raw.githubusercontent.com/AliRezaKhatibi/DeepForge/main/docs/images/architecture-report.html). The gallery workflow reproduces these screenshots and the report.
 
 ## Training analytics and persistent events (0.6)
 
@@ -529,14 +564,14 @@ identically configured model and dataset; it does not recreate user code.
 
 ## Complete training quickstart: Colab, Kaggle, Jupyter and VS Code
 
-The distribution name is **deepforge-research-toolkit**, while the Python import is **deepforge**. The following examples target release 0.7.1.1.2.
+The distribution name is **deepforge-research-toolkit**, while the Python import is **deepforge**. The following examples target release 0.7.1.1.3.
 
 ### 1. Installation and environment
 
 In Colab or Kaggle, run in a notebook cell (enable Internet in Kaggle for downloads):
 
 ```python
-%pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.2"
+%pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.3"
 ```
 
 In Colab only, enable widgets:
@@ -552,7 +587,7 @@ For VS Code or local Jupyter, create an environment in a terminal:
 python -m venv .venv
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 # Linux/macOS: source .venv/bin/activate
-python -m pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.2" ipykernel jupyterlab
+python -m pip install "deepforge-research-toolkit[interactive,resources]==0.7.1.1.3" ipykernel jupyterlab
 python -m pip install torch torchvision
 python -m ipykernel install --user --name deepforge-demo
 ```
